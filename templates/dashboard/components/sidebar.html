@@ -1,0 +1,55 @@
+<button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<aside class="sidebar">
+  <div class="brand"><span class="brand-mark">WMS</span><span class="brand-mark-ai">·AI</span></div>
+  <nav class="sidebar-nav">
+    <a href="{% url 'dashboard' %}" class="nav-item {% if active == 'dashboard' %}active{% endif %}">
+      <span>📊</span> Дашборд
+    </a>
+    <a href="{% url 'inventory' %}" class="nav-item {% if active == 'inventory' %}active{% endif %}">
+      <span>📦</span> Склад
+    </a>
+    <a href="{% url 'supplies' %}" class="nav-item {% if active == 'supplies' %}active{% endif %}">
+      <span>📥</span> Поставки
+    </a>
+    <a href="{% url 'sales' %}" class="nav-item {% if active == 'sales' %}active{% endif %}">
+      <span>📤</span> Продажи
+    </a>
+    <a href="{% url 'analytics' %}" class="nav-item {% if active == 'analytics' %}active{% endif %}">
+      <span>📈</span> Аналитика
+    </a>
+    <a href="{% url 'reports' %}" class="nav-item {% if active == 'reports' %}active{% endif %}">
+      <span>📋</span> Отчёты
+    </a>
+    <a href="{% url 'settings' %}" class="nav-item {% if active == 'settings' %}active{% endif %}">
+      <span>⚙️</span> Настройки
+    </a>
+    <a href="{% url 'logs' %}" class="nav-item {% if active == 'logs' %}active{% endif %}">
+      <span>📋</span> Журнал
+    </a>
+    <a href="{% url 'constructor' %}" class="nav-item {% if active == 'constructor' %}active{% endif %}">
+      <span>🔧</span> Конструктор
+    </a>
+    <a href="{% url 'clients' %}" class="nav-item {% if active == 'clients' %}active{% endif %}">
+      <span>👥</span> Клиенты
+    </a>
+    <a href="{% url 'orders' %}" class="nav-item {% if active == 'orders' %}active{% endif %}">
+      <span>📦</span> Заказы
+    </a>
+  </nav>
+  <div class="side-ai-tip">
+    <span class="ai-dot"></span>
+    <p><strong>AI-подсказка:</strong> запасы обновляются автоматически.</p>
+  </div>
+  <a href="{% url 'logout' %}" class="nav-item" style="text-decoration:none;margin-top:4px;">
+    <span>🚪</span> Выйти
+  </a>
+</aside>
+<script>
+document.addEventListener('click', function(e) {
+  var sidebar = document.querySelector('.sidebar');
+  var hamburger = document.querySelector('.hamburger');
+  if (sidebar && sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== hamburger && !hamburger.contains(e.target)) {
+    sidebar.classList.remove('open');
+  }
+});
+</script>

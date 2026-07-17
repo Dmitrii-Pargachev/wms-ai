@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="dashboard-layout">
+  {% include "dashboard/components/sidebar.html" %}
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>📦 Заказы с сайта</h1>
+    </div>
+
+    <div class="filters-bar" id="statusFilters">
+      <button class="filter-btn active" data-status="">Все</button>
+      <button class="filter-btn" data-status="new">Новые</button>
+      <button class="filter-btn" data-status="confirmed">Подтверждённые</button>
+      <button class="filter-btn" data-status="completed">Выполненные</button>
+      <button class="filter-btn" data-status="cancelled">Отменённые</button>
+    </div>
+
+    <div class="table-wrapper">
+      <table class="data-table" id="ordersTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Клиент</th>
+            <th>Телефон</th>
+            <th>Сумма</th>
+            <th>Статус</th>
+            <th>Дата</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="ordersBody"></tbody>
+      </table>
+    </div>
+
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <p>Заказов пока нет</p>
+    </div>
+  </main>
+</div>
+
+<div class="modal" id="orderDetailModal">
+  <div class="modal-card" id="orderDetailContent"></div>
+</div>
+
+<script>
+let orders = [];
+let currentStatus = '';
+
+async function loadOrders(){
+  try {
+    const url = currentStatus ? `/api/orders/?status=${currentStatus}` : '/api/orders/';
+    const res = await fetch(url);
+    const data = await res.json();
+    orders = data.orders || [];
+    renderOrders();
+  } catch(e) {
+    console.error('Failed to load orders:', e);
+  }
+}
+
+function renderOrders(){
+  const tbody = document.getElementById('ordersBody');
+  const empty = document.getElementById('emptyState');
+
+  if(orders.length === 0){
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const statusColors = {
+    new: '#FBEFD9',
+    confirmed: '#E7EFE2',
+    completed: '#E0E7F5',
+    cancelled: '#F3E4E1'
+  };
+  const statusText = {
+    new: 'Новый',
+    confirmed: 'Подтверждён',
+    completed: 'Выполнен',
+    cancelled: 'Отменён'
+  };
+
+  tbody.innerHTML = orders.map(o => `
+    <tr>
+      <td>${o.id}</td>
+      <td><strong>${o.customer_name}</strong></td>
+      <td>${o.customer_phone}</td>
+      <td>${o.total.toLocaleString('ru-RU')} ₽</td>
+      <td><span style="background:${statusColors[o.status]};padding:3px 10px;border-radius:999px;font-size:12px;">${statusText[o.status]}</span></td>
+      <td>${o.created_at}</td>
+      <td><button class="btn-sm" onclick="openOrderDetail(${o.id})">Подробнее</button></td>
+    </tr>
+  `).join('');
+}
+
+function openOrderDetail(id){
+  const o = orders.find(x => x.id === id);
+  if(!o) return;
+
+  const itemsHtml = o.items.map(item => `
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;">
+      <span>${item.name} × ${item.quantity}</span>
+      <span>${(item.price * item.quantity).toLocaleString('ru-RU')} ₽</span>
+    </div>
+  `).join('');
+
+  document.getElementById('orderDetailContent').innerHTML = `
+    <h2>Заказ #${o.id}</h2>
+    <p style="color:#666;margin-bottom:16px;">${o.created_at}</p>
+
+    <div style="margin-bottom:16px;">
+      <div><strong>Клиент:</strong> ${o.customer_name}</div>
+      <div><strong>Телефон:</strong> ${o.customer_phone}</div>
+      ${o.customer_email ? `<div><strong>Email:</strong> ${o.customer_email}</div>` : ''}
+      ${o.comment ? `<div><strong>Комментарий:</strong> ${o.comment}</div>` : ''}
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <strong>Товары:</strong>
+      ${itemsHtml}
+      <div style="display:flex;justify-content:space-between;padding:10px 0;font-weight:600;font-size:16px;">
+        <span>Итого</span>
+        <span>${o.total.toLocaleString('ru-RU')} ₽</span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${o.status === 'new' ? `
+        <button class="btn btn-success" onclick="updateStatus(${o.id}, 'confirmed')">Подтвердить</button>
+        <button class="btn btn-danger" onclick="updateStatus(${o.id}, 'cancelled')">Отменить</button>
+      ` : ''}
+      ${o.status === 'confirmed' ? `
+        <button class="btn btn-success" onclick="updateStatus(${o.id}, 'completed')">Выполнен</button>
+        <button class="btn btn-danger" onclick="updateStatus(${o.id}, 'cancelled')">Отменить</button>
+      ` : ''}
+      <button class="btn" onclick="closeOrderDetail()">Закрыть</button>
+    </div>
+  `;
+  document.getElementById('orderDetailModal').classList.add('show');
+}
+
+function closeOrderDetail(){
+  document.getElementById('orderDetailModal').classList.remove('show');
+}
+
+async function updateStatus(id, status){
+  try {
+    const res = await fetch(`/api/orders/${id}/status/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ status })
+    });
+    const data = await res.json();
+    if(data.ok){
+      closeOrderDetail();
+      loadOrders();
+    } else {
+      alert(data.error || 'Ошибка');
+    }
+  } catch(e) {
+    alert('Ошибка сети');
+  }
+}
+
+document.getElementById('statusFilters').addEventListener('click', e => {
+  const btn = e.target.closest('.filter-btn');
+  if(!btn) return;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentStatus = btn.dataset.status;
+  loadOrders();
+});
+
+loadOrders();
+</script>
+{% endblock %}

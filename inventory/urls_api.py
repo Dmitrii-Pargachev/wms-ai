@@ -38,4 +38,8 @@ urlpatterns = [
     # Catalog (public)
     path('catalog/products/', catalog_views.catalog_products_api, name='catalog_products'),
     path('catalog/order/', catalog_views.catalog_order_api, name='catalog_order'),
+
+    # Orders
+    path('orders/', order_views.orders_api, name='orders_api'),
+    path('orders/<int:order_id>/status/', order_views.order_update_status, name='order_update_status'),
 ]
