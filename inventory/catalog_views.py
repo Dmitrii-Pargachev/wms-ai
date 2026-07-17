@@ -124,3 +124,32 @@ def catalog_order_api(request):
         'order_id': order.id,
         'total': float(order.total),
     })
+
+
+@csrf_exempt
+@require_POST
+def generate_product_card(request, product_id):
+    """Generate product card image — placeholder for AI integration."""
+    business = request.business
+    if not business:
+        return JsonResponse({'error': 'No business'}, status=400)
+
+    try:
+        product = Product.objects.using(request.db_alias).get(id=product_id)
+    except Product.DoesNotExist:
+        return JsonResponse({'error': 'Товар не найден'}, status=404)
+
+    # Placeholder — returns product data for AI to generate image
+    # User will connect their AI model to process this
+    return JsonResponse({
+        'ok': True,
+        'product': {
+            'id': product.id,
+            'name': product.name,
+            'price': str(product.sale_price),
+            'description': product.custom_fields.get('description', ''),
+            'category': product.category.name if product.category else '',
+        },
+        'message': 'Подключите AI модель для генерации изображения',
+        'image_url': product.custom_fields.get('image', ''),
+    })

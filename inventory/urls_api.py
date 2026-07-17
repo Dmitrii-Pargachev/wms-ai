@@ -38,6 +38,7 @@ urlpatterns = [
     # Catalog (public)
     path('catalog/products/', catalog_views.catalog_products_api, name='catalog_products'),
     path('catalog/order/', catalog_views.catalog_order_api, name='catalog_order'),
+    path('catalog/generate-card/<int:product_id>/', catalog_views.generate_product_card, name='generate_card'),
 
     # Orders
     path('orders/', order_views.orders_api, name='orders_api'),
