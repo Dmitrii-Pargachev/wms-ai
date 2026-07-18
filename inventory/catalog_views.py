@@ -51,11 +51,16 @@ def catalog_products_api(request):
     if not business:
         return JsonResponse({'error': 'No business'}, status=400)
 
-    products = Product.objects.using(request.db_alias).filter(
-        quantity__gt=0
-    ).select_related('category').order_by('-created_at')
+    try:
+        # Dashboard stores products in default DB (no .using()), so query there too
+        products = list(Product.objects.filter(business=business).order_by('-created_at'))
+    except Exception as e:
+        return JsonResponse({'products': [], 'categories': [], 'error': str(e)})
 
-    categories = Category.objects.using(request.db_alias).all().order_by('name')
+    try:
+        categories = list(Category.objects.filter(business=business).order_by('name'))
+    except Exception:
+        categories = []
 
     data = {
         'products': [_product_to_catalog(p) for p in products],
@@ -66,17 +71,31 @@ def catalog_products_api(request):
 
 def _product_to_catalog(product):
     """Map Product model to catalog template format."""
-    status_map = {'instock': 'in', 'low': 'low', 'out': 'out'}
     cf = product.custom_fields or {}
+    try:
+        cat_slug = product.category.slug if product.category else 'other'
+    except Exception:
+        cat_slug = 'other'
+
+    # Compute stock from real quantity, not cached status
+    qty = product.quantity
+    if qty <= 0:
+        stock = 'out'
+    elif qty < 10:
+        stock = 'low'
+    else:
+        stock = 'in'
+
     return {
         'id': product.id,
         'name': product.name,
-        'category': product.category.slug if product.category else 'other',
+        'category': cat_slug,
         'origin': product.country or '',
         'desc': cf.get('description', ''),
         'price': int(product.sale_price),
         'unit': cf.get('unit', 'шт'),
-        'stock': status_map.get(product.status, 'out'),
+        'stock': stock,
+        'quantity': qty,
         'roast': cf.get('roast', ''),
         'image': cf.get('image', ''),
     }

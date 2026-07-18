@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}WMS·AI — Отчёты{% endblock %}
+
+{% block body %}
+<div class="app-layout">
+  {% include 'dashboard/components/sidebar.html' with active='reports' %}
+
+  <main class="main-content">
+    <header class="header">
+      <div>
+        <h1>Отчёты</h1>
+        <p class="header-sub">{{ user.username }} · {{ business.name|default:"Система" }}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="avatar" style="{% if user.profile.avatar %}background-image:url('/media/{{ user.profile.avatar }}?t=1');background-size:cover;background-position:center;{% endif %}">{% if not user.profile.avatar %}{{ user.username|truncatechars:2 }}{% endif %}</div>
+      </div>
+    </header>
+
+    <div class="kpi-grid">
+      <div class="kpi-card" style="cursor:pointer;transition:border-color .2s;" onclick="showSalesReport()" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor=''">
+        <div style="font-size:28px;margin-bottom:8px;">📊</div>
+        <div class="kpi-label">Продажи</div>
+        <div class="kpi-value blue">Отчёт</div>
+      </div>
+      <div class="kpi-card" style="cursor:pointer;transition:border-color .2s;" onclick="showInventoryReport()" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor=''">
+        <div style="font-size:28px;margin-bottom:8px;">📦</div>
+        <div class="kpi-label">Остатки</div>
+        <div class="kpi-value green">Отчёт</div>
+      </div>
+      <div class="kpi-card" style="cursor:pointer;transition:border-color .2s;" onclick="exportSalesReport()" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor=''">
+        <div style="font-size:28px;margin-bottom:8px;">📥</div>
+        <div class="kpi-label">Экспорт</div>
+        <div class="kpi-value orange">HTML</div>
+      </div>
+      <div class="kpi-card" style="cursor:pointer;transition:border-color .2s;" onclick="exportSalesPDF()" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor=''">
+        <div style="font-size:28px;margin-bottom:8px;">📄</div>
+        <div class="kpi-label">PDF</div>
+        <div class="kpi-value" style="color:#ef4444;">Скачать</div>
+      </div>
+    </div>
+
+    <!-- Report Detail -->
+    <div class="card" id="report-detail" style="display:none;">
+      <div class="table-head-row">
+        <h2 id="report-title">Детали отчёта</h2>
+        <button class="btn btn-ghost" onclick="document.getElementById('report-detail').style.display='none'">Закрыть</button>
+      </div>
+      <div id="report-content"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  function fmtMoney(n) {
+    return new Intl.NumberFormat('ru-RU').format(n || 0);
+  }
+
+  async function showSalesReport() {
+    try {
+      const res = await fetch('/api/reports/sales/?period=month');
+      const data = await res.json();
+      document.getElementById('report-title').textContent = 'Продажи за месяц';
+      document.getElementById('report-content').innerHTML = `
+        <div class="kpi-grid" style="margin-bottom:20px;">
+          <div class="kpi-card"><div class="kpi-label">Выручка</div><div class="kpi-value blue">${fmtMoney(data.summary.revenue)} ₽</div></div>
+          <div class="kpi-card"><div class="kpi-label">Продаж</div><div class="kpi-value green">${data.summary.count}</div></div>
+          <div class="kpi-card"><div class="kpi-label">Средний чек</div><div class="kpi-value orange">${fmtMoney(data.summary.avg_check)} ₽</div></div>
+        </div>
+        <h3 style="margin-bottom:12px;">По категориям</h3>
+        <table>
+          <thead><tr><th>Категория</th><th class="num">Продаж</th><th class="num">Выручка</th></tr></thead>
+          <tbody>${(data.by_category || []).map(c => `<tr><td>${c.product__category__name || 'Без категории'}</td><td class="num">${c.count}</td><td class="num" style="color:var(--accent);">${fmtMoney(c.revenue)} ₽</td></tr>`).join('')}</tbody>
+        </table>`;
+      document.getElementById('report-detail').style.display = 'block';
+    } catch (e) { console.error(e); }
+  }
+
+  async function showInventoryReport() {
+    try {
+      const res = await fetch('/api/reports/inventory/');
+      const data = await res.json();
+      document.getElementById('report-title').textContent = 'Остатки на складе';
+      document.getElementById('report-content').innerHTML = `
+        <div class="kpi-grid" style="margin-bottom:20px;">
+          <div class="kpi-card"><div class="kpi-label">Товаров</div><div class="kpi-value blue">${data.summary.total_products}</div></div>
+          <div class="kpi-card"><div class="kpi-label">Стоимость</div><div class="kpi-value green">${fmtMoney(data.summary.total_value)} ₽</div></div>
+          <div class="kpi-card"><div class="kpi-label">Мало</div><div class="kpi-value orange">${(data.low_stock || []).length}</div></div>
+        </div>
+        ${(data.low_stock || []).length > 0 ? `<h3 style="margin-bottom:12px;">Мало на складе</h3>
+        <table><thead><tr><th>Товар</th><th class="num">Остаток</th></tr></thead>
+        <tbody>${data.low_stock.map(p => `<tr><td>${p.name}</td><td class="num" style="color:var(--warn);">${p.quantity}</td></tr>`).join('')}</tbody></table>` : ''}`;
+      document.getElementById('report-detail').style.display = 'block';
+    } catch (e) { console.error(e); }
+  }
+
+  function exportSalesReport() {
+    window.open('/api/reports/export/sales.html/?period=month', '_blank');
+  }
+
+  function exportSalesPDF() {
+    window.open('/api/reports/export/sales.pdf/?period=month', '_blank');
+  }
+</script>
+{% endblock %}

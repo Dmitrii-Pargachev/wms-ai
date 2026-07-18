@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block title %}WMS·AI — Продажи{% endblock %}
+
+{% block body %}
+<div class="app-layout">
+  {% include 'dashboard/components/sidebar.html' with active='sales' %}
+
+  <main class="main-content">
+    <header class="header">
+      <div>
+        <h1>Продажи</h1>
+        <p class="header-sub">{{ user.username }} · {{ business.name|default:"Система" }}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="btn-add" onclick="openModal('sale-modal')">+ Продать</button>
+        <div class="avatar" style="{% if user.profile.avatar %}background-image:url('/media/{{ user.profile.avatar }}?t=1');background-size:cover;background-position:center;{% endif %}">{% if not user.profile.avatar %}{{ user.username|truncatechars:2 }}{% endif %}</div>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="table-head-row">
+        <h2>Продажи</h2>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="sale-search" placeholder="Поиск..." oninput="filterSales()">
+          <span style="font-size:11px;color:var(--ink-soft);">от</span>
+          <input type="date" id="sale-date-from" onchange="filterSales()">
+          <span style="font-size:11px;color:var(--ink-soft);">до</span>
+          <input type="date" id="sale-date-to" onchange="filterSales()">
+          <span class="table-sum">Сумма: <strong id="sales-sum">0 ₽</strong></span>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Товар</th>
+              <th>Клиент</th>
+              <th class="num">Кол-во</th>
+              <th class="num">Цена</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody id="sales-body">
+            <tr><td colspan="6" style="text-align:center;color:var(--ink-soft);">Загрузка...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Sale Modal -->
+<div class="modal-overlay" id="sale-modal">
+  <div class="modal-card">
+    <div class="modal-scan-line"></div>
+    <button class="modal-close" onclick="closeModal('sale-modal')">&times;</button>
+    <h2 class="modal-title">Новая продажа</h2>
+    <p class="modal-sub">Оформите продажу товара</p>
+    <form id="sale-form" onsubmit="saveSale(event)">
+      <label class="field">
+        <span>Товар *</span>
+        <select id="sale-product" required></select>
+      </label>
+      <label class="field">
+        <span>Клиент</span>
+        <input type="text" id="sale-client" placeholder="Имя клиента">
+      </label>
+      <label class="field">
+        <span>Количество</span>
+        <input type="number" id="sale-qty" value="1" min="1">
+      </label>
+      <label class="field">
+        <span>Цена</span>
+        <input type="number" id="sale-price" step="0.01" min="0">
+      </label>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('sale-modal')">Отмена</button>
+        <button type="submit" class="btn btn-primary">Продать</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  let allSales = [];
+
+  async function loadSales() {
+    try {
+      const res = await fetch('/api/sales/');
+      const data = await res.json();
+      allSales = data.sales || data;
+      filterSales();
+    } catch (e) {
+      console.error('Failed to load sales:', e);
+    }
+  }
+
+  function filterSales() {
+    const q = (document.getElementById('sale-search').value || '').toLowerCase();
+    const df = document.getElementById('sale-date-from').value;
+    const dt = document.getElementById('sale-date-to').value;
+
+    let items = allSales.filter(r => {
+      if (q && !r.product_name.toLowerCase().includes(q) && !(r.client || '').toLowerCase().includes(q)) return false;
+      if (df && r.date < df) return false;
+      if (dt && r.date > dt) return false;
+      return true;
+    });
+
+    const total = items.reduce((a, r) => a + (r.quantity || 1) * (r.price || 0), 0);
+    document.getElementById('sales-sum').textContent = fmtMoney(total) + ' ₽';
+
+    const tbody = document.getElementById('sales-body');
+    if (items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--ink-soft);">Нет продаж</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = items.map((r, i) => {
+      const kind = r.status === 'completed' ? 'ok' : 'pending';
+      const statusLabel = r.status === 'completed' ? 'Продано' : 'В ожидании';
+      return `<tr style="animation-delay:${i * 0.03}s">
+        <td class="mono" style="white-space:nowrap;">${r.created_at || r.date || '-'}</td>
+        <td>${r.product_name || '-'}</td>
+        <td style="color:var(--ink-soft);">${r.client || '-'}</td>
+        <td class="num mono">${r.quantity || 1}</td>
+        <td class="num mono">${fmtMoney(r.price)} ₽</td>
+        <td><span class="status status-${kind}">${statusLabel}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function fmtMoney(n) {
+    return new Intl.NumberFormat('ru-RU').format(n || 0);
+  }
+
+  async function loadProducts() {
+    try {
+      const res = await fetch('/api/products/');
+      const data = await res.json();
+      const products = data.products || data;
+      const select = document.getElementById('sale-product');
+      select.innerHTML = '<option value="">Выберите товар</option>';
+      products.forEach(p => {
+        select.innerHTML += `<option value="${p.id}">${p.name} (${fmtMoney(p.sale_price)} ₽)</option>`;
+      });
+    } catch (e) {
+      console.error('Failed to load products:', e);
+    }
+  }
+
+  async function saveSale(e) {
+    e.preventDefault();
+    const data = {
+      product_id: document.getElementById('sale-product').value,
+      serial_number: document.getElementById('sale-serial') ? document.getElementById('sale-serial').value : '',
+      customer_name: document.getElementById('sale-client').value,
+      quantity: parseInt(document.getElementById('sale-qty').value) || 1,
+      price: parseFloat(document.getElementById('sale-price').value) || 0,
+    };
+
+    try {
+      const res = await fetch('/api/sales/create/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        closeModal('sale-modal');
+        loadSales();
+      }
+    } catch (e) {
+      console.error('Save failed:', e);
+    }
+  }
+
+  function openModal(id) {
+    document.getElementById(id).classList.add('open');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+  }
+
+  loadProducts();
+  loadSales();
+</script>
+{% endblock %}

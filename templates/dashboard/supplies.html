@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+
+{% block title %}WMS·AI — Поставки{% endblock %}
+
+{% block body %}
+<div class="app-layout">
+  {% include 'dashboard/components/sidebar.html' with active='supplies' %}
+
+  <main class="main-content">
+    <header class="header">
+      <div>
+        <h1>Поставки</h1>
+        <p class="header-sub">{{ user.username }} · {{ business.name|default:"Система" }}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="btn-add" onclick="openModal('supply-modal')">+ Добавить</button>
+        <div class="avatar" style="{% if user.profile.avatar %}background-image:url('/media/{{ user.profile.avatar }}?t=1');background-size:cover;background-position:center;{% endif %}">{% if not user.profile.avatar %}{{ user.username|truncatechars:2 }}{% endif %}</div>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="table-head-row">
+        <h2>Поставки</h2>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="sup-search" placeholder="Поиск..." oninput="debounce(filterSupplies, 300)()">
+          <span style="font-size:11px;color:var(--ink-soft);">от</span>
+          <input type="date" id="sup-date-from" onchange="filterSupplies()">
+          <span style="font-size:11px;color:var(--ink-soft);">до</span>
+          <input type="date" id="sup-date-to" onchange="filterSupplies()">
+          <span class="table-sum">Всего: <strong id="supplies-sum">0</strong> шт</span>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Поставщик</th>
+              <th>Товар</th>
+              <th class="num">Кол-во</th>
+              <th class="num">Цена</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody id="supplies-body">
+            <tr><td colspan="6" style="text-align:center;color:var(--ink-soft);">Загрузка...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Supply Modal -->
+<div class="modal-overlay" id="supply-modal">
+  <div class="modal-card">
+    <div class="modal-scan-line"></div>
+    <button class="modal-close" onclick="closeModal('supply-modal')">&times;</button>
+    <h2 class="modal-title">Новая поставка</h2>
+    <p class="modal-sub">Добавьте информацию о поставке</p>
+    <form id="supply-form" onsubmit="saveSupply(event)">
+      <label class="field">
+        <span>Поставщик</span>
+        <input type="text" id="supply-supplier" placeholder="Название поставщика">
+      </label>
+      <label class="field">
+        <span>Товар *</span>
+        <select id="supply-product" required></select>
+      </label>
+      <label class="field">
+        <span>Количество</span>
+        <input type="number" id="supply-qty" value="1" min="1">
+      </label>
+      <label class="field">
+        <span>Цена закупки</span>
+        <input type="number" id="supply-price" step="0.01" min="0">
+      </label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <label class="field">
+          <span>Дата поступления</span>
+          <input type="date" id="supply-date">
+        </label>
+        <label class="field">
+          <span>Время</span>
+          <input type="time" id="supply-time">
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('supply-modal')">Отмена</button>
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  let allSupplies = [];
+  function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+  }
+
+  async function loadSupplies() {
+    try {
+      const res = await fetch('/api/supplies/');
+      const data = await res.json();
+      allSupplies = data.supplies || data;
+      filterSupplies();
+    } catch (e) {
+      console.error('Failed to load supplies:', e);
+    }
+  }
+
+  function filterSupplies() {
+    const q = (document.getElementById('sup-search').value || '').toLowerCase();
+    const df = document.getElementById('sup-date-from').value;
+    const dt = document.getElementById('sup-date-to').value;
+
+    let items = allSupplies.filter(r => {
+      if (q && !(r.product_name || '').toLowerCase().includes(q) && !(r.supplier_name || '').toLowerCase().includes(q)) return false;
+      if (df && r.date < df) return false;
+      if (dt && r.date > dt) return false;
+      return true;
+    });
+
+    document.getElementById('supplies-sum').textContent = items.length;
+
+    const tbody = document.getElementById('supplies-body');
+    if (items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--ink-soft);">Нет поставок</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = items.map((r, i) => {
+      const kind = r.status === 'received' ? 'ok' : r.status === 'pending' ? 'pending' : 'warn';
+      const statusLabel = r.status === 'received' ? 'Получено' : r.status === 'pending' ? 'Ожидается' : r.status;
+      return `<tr style="animation-delay:${i * 0.03}s">
+        <td class="mono" style="white-space:nowrap;">${r.arrival_date || '-'} ${r.arrival_time || ''}</td>
+        <td>${r.supplier_name || '-'}</td>
+        <td>${r.product_name || '-'}</td>
+        <td class="num mono">${r.quantity || 1}</td>
+        <td class="num mono">${fmtMoney(r.price)} ₽</td>
+        <td><span class="status status-${kind}">${statusLabel}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function fmtMoney(n) {
+    return new Intl.NumberFormat('ru-RU').format(n || 0);
+  }
+
+  async function loadProducts() {
+    try {
+      const res = await fetch('/api/products/');
+      const data = await res.json();
+      const products = data.products || data;
+      const select = document.getElementById('supply-product');
+      select.innerHTML = '<option value="">Выберите товар</option>';
+      products.forEach(p => {
+        select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+      });
+    } catch (e) {
+      console.error('Failed to load products:', e);
+    }
+  }
+
+  async function saveSupply(e) {
+    e.preventDefault();
+    const data = {
+      supplier_name: document.getElementById('supply-supplier').value,
+      product_id: document.getElementById('supply-product').value,
+      serial_number: 'SN-' + Date.now(),
+      quantity: parseInt(document.getElementById('supply-qty').value) || 1,
+      purchase_price: parseFloat(document.getElementById('supply-price').value) || 0,
+      arrival_date: document.getElementById('supply-date').value || new Date().toISOString().slice(0, 10),
+      arrival_time: document.getElementById('supply-time').value || '',
+    };
+
+    try {
+      const res = await fetch('/api/supplies/create/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        closeModal('supply-modal');
+        loadSupplies();
+      }
+    } catch (e) {
+      console.error('Save failed:', e);
+    }
+  }
+
+  function openModal(id) {
+    document.getElementById(id).classList.add('open');
+    if (id === 'supply-modal') {
+      const now = new Date();
+      document.getElementById('supply-date').value = now.toISOString().slice(0, 10);
+      document.getElementById('supply-time').value = now.toTimeString().slice(0, 5);
+    }
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+  }
+
+  loadProducts();
+  loadSupplies();
+</script>
+{% endblock %}

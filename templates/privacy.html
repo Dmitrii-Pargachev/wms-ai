@@ -1,0 +1,90 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WMS·AI — Политика конфиденциальности</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0118; --bg-soft:#120A28; --violet:#7C3AED; --magenta:#C026D3;
+  --ink:#F5F3FF; --ink-soft:#A78BFA; --card:#160B30; --card-border:rgba(167,139,250,0.18);
+  --accent:#7C3AED; --accent-glow:rgba(124,58,237,0.35);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--ink); font-family:'Inter',system-ui,sans-serif;
+  min-height:100vh; padding:40px 20px; line-height:1.7;
+}
+body::before{
+  content:""; position:fixed; inset:0;
+  background: radial-gradient(ellipse 60% 40% at 80% -10%, rgba(124,58,237,0.35), transparent 60%),
+              radial-gradient(ellipse 50% 35% at 0% 20%, rgba(192,38,211,0.18), transparent 60%);
+  pointer-events:none; z-index:-1;
+}
+.container{max-width:700px;margin:0 auto;background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:40px;box-shadow:0 40px 80px -20px var(--accent-glow);}
+h1{font-family:'Space Grotesk',sans-serif;font-size:28px;margin-bottom:8px;}
+h2{font-family:'Space Grotesk',sans-serif;font-size:18px;color:var(--accent);margin:28px 0 12px;}
+p{color:var(--ink-soft);font-size:14px;margin-bottom:14px;}
+a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+.brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;margin-bottom:24px;}
+.brand-mark{color:var(--ink);}.brand-mark-ai{color:var(--accent);}
+.back{display:inline-block;margin-bottom:20px;color:var(--ink-soft);font-size:14px;}
+.back:hover{color:var(--accent);text-decoration:none;}
+ul{color:var(--ink-soft);font-size:14px;padding-left:20px;margin-bottom:14px;}
+li{margin-bottom:6px;}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back">&larr; На главную</a>
+  <div class="brand"><span class="brand-mark">WMS</span><span class="brand-mark-ai">·AI</span></div>
+
+  <h1>Политика конфиденциальности</h1>
+  <p>Последнее обновление: 15 июля 2026 г.</p>
+
+  <h2>1. Общие положения</h2>
+  <p>Настоящая Политика конфиденциальности определяет порядок обработки персональных данных и информацию о пользователях сервиса WMS·AI (далее — «Сервис»).</p>
+
+  <h2>2. Какие данные мы собираем</h2>
+  <ul>
+    <li>ФИО, email, номер телефона</li>
+    <li>Данные о бизнесе (название, тип, адрес, описание)</li>
+    <li>Данные об используемом оборудовании и браузере</li>
+    <li>Информацию об активности в Сервисе</li>
+  </ul>
+
+  <h2>3. Как мы используем данные</h2>
+  <ul>
+    <li>Для предоставления и улучшения SERVICES</li>
+    <li>Для связи с пользователем</li>
+    <li>Для обеспечения безопасности</li>
+    <li>Для аналитики и статистики</li>
+  </ul>
+
+  <h2>4. Cookies</h2>
+  <p>Сервис использует файлы cookie для обеспечения работы функционала, запоминания настроек пользователя и анализа трафика. Вы можете управлять настройками cookie в своём браузере.</p>
+
+  <h2>5. Безопасность данных</h2>
+  <p>Мы принимаем необходимые организационные и технические меры для защиты персональных данных от неправомерного доступа, уничтожения, изменения, блокирования, копирования, предоставления, распространения.</p>
+
+  <h2>6. Ваши права</h2>
+  <p>В соответствии с 152-ФЗ «О персональных данных» вы имеете право:</p>
+  <ul>
+    <li>На доступ к вашим персональным данным</li>
+    <li>На исправление неточных данных</li>
+    <li>На удаление ваших данных</li>
+    <li>На ограничение обработки</li>
+    <li>На отзыв согласия</li>
+  </ul>
+
+  <h2>7. Контакты</h2>
+  <p>По вопросам обработки персональных данных обращайтесь: <a href="mailto:info@wms-ai.ru">info@wms-ai.ru</a></p>
+
+  <h2>8. Изменения в Политике</h2>
+  <p>Мы оставляем за собой право вносить изменения в настоящую Политику. Актуальная версия всегда доступна на данной странице.</p>
+</div>
+</body>
+</html>

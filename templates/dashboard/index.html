@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}WMS·AI — Панель управления{% endblock %}
+{% block body %}
+<div class="app-layout">
+  {% include 'dashboard/components/sidebar.html' with active='dashboard' %}
+  <main class="main-content">
+    <header class="header">
+      <div>
+        <h1>Дашборд</h1>
+        <p class="header-sub">{{ user.username }} · {{ business.name|default:"Система" }}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="exchange-widget" style="display:none;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid var(--card-border);border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;" onclick="fetchExchangeRate()" title="Курс доллара">
+          <span style="color:var(--ink-soft);">$</span>
+          <span id="rate-value" style="font-weight:600;color:var(--accent);">—</span>
+          <span style="color:var(--ink-soft);">₽</span>
+        </div>
+        <div class="notif-bell" onclick="toggleNotifications()" style="position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.04);border:1px solid var(--card-border);transition:border-color .2s;" onmouseenter="this.style.borderColor='var(--accent)'" onmouseleave="this.style.borderColor='var(--card-border)'">
+          <span style="font-size:16px;">🔔</span>
+          <span id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#FB7185;color:white;font-size:10px;min-width:16px;height:16px;border-radius:50%;text-align:center;line-height:16px;padding:0 4px;"></span>
+        </div>
+        <div class="avatar" style="{% if user.profile.avatar %}background-image:url('/media/{{ user.profile.avatar }}?t=1');background-size:cover;background-position:center;{% endif %}">{% if not user.profile.avatar %}{{ user.username|truncatechars:2 }}{% endif %}</div>
+      </div>
+    </header>
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Товаров</div><div class="kpi-value blue" id="kpi-products">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Поставок</div><div class="kpi-value green" id="kpi-supplies">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Продаж</div><div class="kpi-value orange" id="kpi-sales">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Мало на складе</div><div class="kpi-value red" id="kpi-low">—</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Выручка за 30 дней</h2></div>
+      <div style="font-size:28px;font-weight:700;color:var(--ok);font-family:'Space Grotesk',sans-serif;" id="kpi-revenue">—</div>
+      <div style="font-size:13px;color:var(--ink-soft);margin-top:4px;">Средний чек: <span id="kpi-avg" class="mono">—</span></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Быстрые действия</h2></div>
+      <div class="quick-actions">
+        <a href="{% url 'inventory' %}" class="quick-action"><span class="quick-action-icon">📦</span><span>Склад</span></a>
+        <a href="{% url 'supplies' %}" class="quick-action"><span class="quick-action-icon">📥</span><span>Поставки</span></a>
+        <a href="{% url 'sales' %}" class="quick-action"><span class="quick-action-icon">📤</span><span>Продажи</span></a>
+        <a href="{% url 'analytics' %}" class="quick-action"><span class="quick-action-icon">📈</span><span>Аналитика</span></a>
+        <a href="{% url 'reports' %}" class="quick-action"><span class="quick-action-icon">📋</span><span>Отчёты</span></a>
+        <a href="{% url 'settings' %}" class="quick-action"><span class="quick-action-icon">⚙️</span><span>Настройки</span></a>
+      </div>
+    </div>
+  </main>
+</div>
+
+{% include 'dashboard/components/notifications.html' %}
+
+<script>
+function formatPrice(p){return new Intl.NumberFormat('ru-RU').format(p)+' ₽';}
+async function loadDashboard(){try{var r=await fetch('/api/analytics/summary/');var d=await r.json();document.getElementById('kpi-products').textContent=d.products.total;document.getElementById('kpi-supplies').textContent=d.supplies.total;document.getElementById('kpi-sales').textContent=d.sales.total;document.getElementById('kpi-low').textContent=d.products.low+d.products.out;document.getElementById('kpi-revenue').textContent=formatPrice(d.revenue.recent_30d);document.getElementById('kpi-avg').textContent=formatPrice(d.revenue.avg_check);}catch(e){}}
+function fetchExchangeRate(){var v=document.getElementById('rate-value');fetch('/api/analytics/exchange-rate/').then(function(r){return r.json();}).then(function(d){v.textContent=d.rate;}).catch(function(){v.textContent='—';});}
+function initExchangeRate(){var show=getSetting('show_exchange_rate','1');if(show==='1'){document.getElementById('exchange-widget').style.display='flex';fetchExchangeRate();setInterval(fetchExchangeRate,60000);}}
+loadDashboard();initExchangeRate();
+
+// Notifications — backend-based with read/unread tracking
+var notifCount = 0;
+var notifMax = 8;
+
+function toggleNotifications() {
+  var panel = document.getElementById('notif-panel');
+  var overlay = document.getElementById('notif-overlay');
+  panel.classList.toggle('open');
+  overlay.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    loadNotifications();
+  }
+}
+
+async function loadNotifications() {
+  try {
+    var res = await fetch('/api/notifications/');
+    var data = await res.json();
+    var notifications = data.notifications || [];
+    notifCount = data.unread_count || 0;
+
+    var list = document.getElementById('notif-list');
+    list.innerHTML = '';
+
+    var iconMap = {
+      'low_stock': '⚠️',
+      'out_of_stock': '❌',
+      'sale': '💰',
+      'supply': '📥',
+      'revenue': '📊',
+    };
+
+    notifications.slice(0, notifMax).forEach(function(n) {
+      var item = document.createElement('div');
+      item.className = 'notif-item' + (n.is_read ? '' : ' unread');
+      item.style.cursor = 'pointer';
+      item.onclick = function() { markNotificationRead(n.id, item); };
+      item.innerHTML = '<div style="display:flex;align-items:flex-start;"><span class="notif-icon">' + (iconMap[n.type] || '📌') + '</span><div style="flex:1;"><div class="notif-title">' + n.title + '</div><div class="notif-text">' + n.message + '</div><div class="notif-time">' + n.created_at + '</div></div>' + (n.is_read ? '' : '<div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:6px;"></div>') + '</div>';
+      list.appendChild(item);
+    });
+
+    if (notifications.length === 0) {
+      list.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:20px;">Нет уведомлений</div>';
+    }
+
+    updateBadge();
+  } catch (e) {
+    console.error('Failed to load notifications:', e);
+  }
+}
+
+async function markNotificationRead(id, element) {
+  try {
+    await fetch('/api/notifications/' + id + '/read/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+    });
+    element.classList.remove('unread');
+    var dot = element.querySelector('div[style*="border-radius:50%"]');
+    if (dot) dot.remove();
+    notifCount = Math.max(0, notifCount - 1);
+    updateBadge();
+  } catch (e) {
+    console.error('Failed to mark notification:', e);
+  }
+}
+
+async function markAllRead() {
+  try {
+    await fetch('/api/notifications/read-all/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+    });
+    notifCount = 0;
+    updateBadge();
+    loadNotifications();
+  } catch (e) {
+    console.error('Failed to mark all read:', e);
+  }
+}
+
+function fmtMoney(n) {
+  return new Intl.NumberFormat('ru-RU').format(n || 0);
+}
+
+function updateBadge() {
+  var badge = document.getElementById('notif-badge');
+  if (notifCount > 0) {
+    badge.style.display = 'block';
+    badge.textContent = notifCount;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// Auto-generate notifications on page load
+fetch('/api/notifications/', { method: 'GET' }).then(function() {});
+
+// Обновлять уведомления каждые 60 секунд
+setInterval(function() {
+  if (document.getElementById('notif-panel').classList.contains('open')) {
+    loadNotifications();
+  }
+}, 60000);
+</script>
+{% endblock %}

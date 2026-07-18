@@ -1,30 +1,37 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block content %}
-<div class="dashboard-layout">
-  {% include "dashboard/components/sidebar.html" %}
+{% block title %}WMS·AI — Заказы{% endblock %}
+{% block body %}
+<div class="app-layout">
+  {% include 'dashboard/components/sidebar.html' with active='orders' %}
 
   <main class="main-content">
-    <div class="page-header">
-      <h1>📦 Заказы с сайта</h1>
-    </div>
+    <header class="header">
+      <div>
+        <h1>📦 Заказы с сайта</h1>
+        <p class="header-sub">{{ business.name }}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="avatar" style="{% if user.profile.avatar %}background-image:url('/media/{{ user.profile.avatar }}?t=1');background-size:cover;background-position:center;{% endif %}">{% if not user.profile.avatar %}{{ user.username|truncatechars:2 }}{% endif %}</div>
+      </div>
+    </header>
 
     <div class="filters-bar" id="statusFilters">
       <button class="filter-btn active" data-status="">Все</button>
       <button class="filter-btn" data-status="new">Новые</button>
-      <button class="filter-btn" data-status="confirmed">Подтверждённые</button>
-      <button class="filter-btn" data-status="completed">Выполненные</button>
-      <button class="filter-btn" data-status="cancelled">Отменённые</button>
+      <button class="filter-btn" data-status="processing">В работе</button>
+      <button class="filter-btn" data-status="completed">Выполнены</button>
     </div>
 
-    <div class="table-wrapper">
-      <table class="data-table" id="ordersTable">
+    <div class="card">
+      <table class="data-table">
         <thead>
           <tr>
             <th>#</th>
             <th>Клиент</th>
             <th>Телефон</th>
+            <th>Товары</th>
             <th>Сумма</th>
             <th>Статус</th>
             <th>Дата</th>
@@ -36,18 +43,60 @@
     </div>
 
     <div class="empty-state" id="emptyState" style="display:none;">
-      <p>Заказов пока нет</p>
+      <p>📦 Заказов пока нет</p>
     </div>
   </main>
 </div>
 
-<div class="modal" id="orderDetailModal">
+<div class="modal-overlay" id="orderDetailModal">
   <div class="modal-card" id="orderDetailContent"></div>
 </div>
+
+<style>
+  .order-status{padding:4px 12px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap;}
+  .order-status.st-new{background:rgba(251,191,36,0.15);color:var(--warn);}
+  .order-status.st-processing{background:rgba(34,211,238,0.15);color:var(--cyan);}
+  .order-status.st-completed{background:rgba(52,211,153,0.15);color:var(--ok);}
+  .order-items-count{font-size:12px;color:var(--ink-soft);}
+  .order-actions{display:flex;gap:6px;}
+  .filters-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .filter-btn{padding:6px 14px;border-radius:999px;border:1px solid var(--card-border);background:transparent;color:var(--ink-soft);cursor:pointer;font-size:13px;font-family:inherit;}
+  .filter-btn:hover{border-color:var(--accent);color:var(--ink);}
+  .filter-btn.active{background:var(--accent);color:white;border-color:var(--accent);}
+  .order-detail-actions{display:flex;gap:10px;flex-wrap:wrap;padding-top:12px;}
+  .order-detail-info{background:var(--bg-soft);border:1px solid var(--card-border);border-radius:12px;padding:14px;margin-bottom:16px;color:var(--ink);}
+  .order-detail-info div{margin-bottom:4px;color:var(--ink);}
+  .order-detail-info strong{color:var(--ink);}
+  .order-detail-items-title{font-weight:600;margin-bottom:8px;color:var(--ink);}
+  .order-detail-total{display:flex;justify-content:space-between;padding:12px 0 0;font-weight:700;font-size:18px;color:var(--ink);}
+  .order-detail-item{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--card-border);}
+  .order-detail-item-name{font-weight:500;color:var(--ink);}
+  .order-detail-item-sub{font-size:12px;color:var(--ink-soft);}
+  .order-detail-item-price{font-weight:500;color:var(--ink);}
+
+  @media(max-width:768px){
+    .data-table{font-size:13px;}
+    .data-table th:nth-child(4),.data-table td:nth-child(4),
+    .data-table th:nth-child(7),.data-table td:nth-child(7){display:none;}
+    .order-actions{flex-direction:column;}
+    .order-actions .btn{width:100%;text-align:center;}
+    .filters-bar{gap:6px;}
+    .filter-btn{padding:5px 10px;font-size:12px;}
+    .modal-card{padding:20px;margin:10px;}
+    .order-detail-actions{flex-direction:column;}
+    .order-detail-actions .btn{width:100%;text-align:center;}
+    .order-detail-total{font-size:16px;}
+    .modal-overlay{padding:0;align-items:flex-end;}
+    .modal-card{width:100%;border-radius:20px 20px 0 0;max-height:85vh;overflow-y:auto;}
+  }
+</style>
 
 <script>
 let orders = [];
 let currentStatus = '';
+
+const STATUS_TEXT = {new:'Новый', processing:'В работе', completed:'Выполнен'};
+const STATUS_CLASS = {new:'st-new', processing:'st-processing', completed:'st-completed'};
 
 async function loadOrders(){
   try {
@@ -64,38 +113,37 @@ async function loadOrders(){
 function renderOrders(){
   const tbody = document.getElementById('ordersBody');
   const empty = document.getElementById('emptyState');
+  const table = document.querySelector('.data-table');
 
   if(orders.length === 0){
     tbody.innerHTML = '';
     empty.style.display = 'block';
+    table.parentElement.style.display = 'none';
     return;
   }
   empty.style.display = 'none';
+  table.parentElement.style.display = '';
 
-  const statusColors = {
-    new: '#FBEFD9',
-    confirmed: '#E7EFE2',
-    completed: '#E0E7F5',
-    cancelled: '#F3E4E1'
-  };
-  const statusText = {
-    new: 'Новый',
-    confirmed: 'Подтверждён',
-    completed: 'Выполнен',
-    cancelled: 'Отменён'
-  };
-
-  tbody.innerHTML = orders.map(o => `
+  tbody.innerHTML = orders.map(o => {
+    const itemsSummary = o.items.map(i => i.name).join(', ');
+    let actions = `<button class="btn btn-ghost" onclick="openOrderDetail(${o.id})">Подробнее</button>`;
+    if(o.status === 'new'){
+      actions += `<button class="btn btn-primary" onclick="updateStatus(${o.id},'processing')">В работу</button>`;
+    } else if(o.status === 'processing'){
+      actions += `<button class="btn btn-primary" onclick="updateStatus(${o.id},'completed')">Выполнен</button>`;
+    }
+    return `
     <tr>
-      <td>${o.id}</td>
-      <td><strong>${o.customer_name}</strong></td>
+      <td><strong>#${o.id}</strong></td>
+      <td>${o.customer_name}</td>
       <td>${o.customer_phone}</td>
-      <td>${o.total.toLocaleString('ru-RU')} ₽</td>
-      <td><span style="background:${statusColors[o.status]};padding:3px 10px;border-radius:999px;font-size:12px;">${statusText[o.status]}</span></td>
+      <td><span class="order-items-count" title="${itemsSummary}">${o.items.length} тов.</span></td>
+      <td><strong>${o.total.toLocaleString('ru-RU')} ₽</strong></td>
+      <td><span class="order-status ${STATUS_CLASS[o.status]}">${STATUS_TEXT[o.status]}</span></td>
       <td>${o.created_at}</td>
-      <td><button class="btn-sm" onclick="openOrderDetail(${o.id})">Подробнее</button></td>
-    </tr>
-  `).join('');
+      <td class="order-actions">${actions}</td>
+    </tr>`;
+  }).join('');
 }
 
 function openOrderDetail(id){
@@ -103,52 +151,66 @@ function openOrderDetail(id){
   if(!o) return;
 
   const itemsHtml = o.items.map(item => `
-    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;">
-      <span>${item.name} × ${item.quantity}</span>
-      <span>${(item.price * item.quantity).toLocaleString('ru-RU')} ₽</span>
+    <div class="order-detail-item">
+      <div>
+        <div class="order-detail-item-name">${item.name}</div>
+        <div class="order-detail-item-sub">${item.quantity} шт × ${item.price.toLocaleString('ru-RU')} ₽</div>
+      </div>
+      <div class="order-detail-item-price">${(item.total || item.price * item.quantity).toLocaleString('ru-RU')} ₽</div>
     </div>
   `).join('');
 
-  document.getElementById('orderDetailContent').innerHTML = `
-    <h2>Заказ #${o.id}</h2>
-    <p style="color:#666;margin-bottom:16px;">${o.created_at}</p>
+  let actionsHtml = '';
+  if(o.status === 'new'){
+    actionsHtml = `
+      <button class="btn btn-primary" onclick="updateStatus(${o.id},'processing')">В работу</button>
+      <p style="font-size:12px;color:var(--ink-soft);margin-top:4px;">Товары будут списаны со склада</p>`;
+  } else if(o.status === 'processing'){
+    actionsHtml = `<button class="btn btn-primary" onclick="updateStatus(${o.id},'completed')">Выполнен</button>`;
+  } else {
+    actionsHtml = `<span style="color:var(--ok);font-weight:500;">✅ Заказ выполнен</span>`;
+  }
 
-    <div style="margin-bottom:16px;">
+  document.getElementById('orderDetailContent').innerHTML = `
+    <button class="modal-close" onclick="closeOrderDetail()">&times;</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="modal-title">Заказ #${o.id}</div>
+      <span class="order-status ${STATUS_CLASS[o.status]}">${STATUS_TEXT[o.status]}</span>
+    </div>
+    <p class="modal-sub">${o.created_at}</p>
+
+    <div class="order-detail-info">
       <div><strong>Клиент:</strong> ${o.customer_name}</div>
       <div><strong>Телефон:</strong> ${o.customer_phone}</div>
       ${o.customer_email ? `<div><strong>Email:</strong> ${o.customer_email}</div>` : ''}
-      ${o.comment ? `<div><strong>Комментарий:</strong> ${o.comment}</div>` : ''}
+      ${o.comment ? `<div style="margin-top:8px;"><strong>Комментарий:</strong><br>${o.comment}</div>` : ''}
     </div>
 
-    <div style="margin-bottom:16px;">
-      <strong>Товары:</strong>
+    <div>
+      <div class="order-detail-items-title">Товары:</div>
       ${itemsHtml}
-      <div style="display:flex;justify-content:space-between;padding:10px 0;font-weight:600;font-size:16px;">
+      <div class="order-detail-total">
         <span>Итого</span>
         <span>${o.total.toLocaleString('ru-RU')} ₽</span>
       </div>
     </div>
 
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      ${o.status === 'new' ? `
-        <button class="btn btn-success" onclick="updateStatus(${o.id}, 'confirmed')">Подтвердить</button>
-        <button class="btn btn-danger" onclick="updateStatus(${o.id}, 'cancelled')">Отменить</button>
-      ` : ''}
-      ${o.status === 'confirmed' ? `
-        <button class="btn btn-success" onclick="updateStatus(${o.id}, 'completed')">Выполнен</button>
-        <button class="btn btn-danger" onclick="updateStatus(${o.id}, 'cancelled')">Отменить</button>
-      ` : ''}
-      <button class="btn" onclick="closeOrderDetail()">Закрыть</button>
+    <div class="order-detail-actions">
+      ${actionsHtml}
+      <button class="btn btn-ghost" onclick="closeOrderDetail()">Закрыть</button>
     </div>
   `;
-  document.getElementById('orderDetailModal').classList.add('show');
+  document.getElementById('orderDetailModal').classList.add('open');
 }
 
 function closeOrderDetail(){
-  document.getElementById('orderDetailModal').classList.remove('show');
+  document.getElementById('orderDetailModal').classList.remove('open');
 }
 
 async function updateStatus(id, status){
+  if(status === 'processing' && !confirm('Перевести заказ в работу?\nТовары будут списаны со склада.')) return;
+  if(status === 'completed' && !confirm('Завершить заказ?')) return;
+
   try {
     const res = await fetch(`/api/orders/${id}/status/`, {
       method: 'POST',

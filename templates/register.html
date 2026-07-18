@@ -1,0 +1,281 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>WMS·AI — Регистрация</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0118; --bg-soft:#120A28; --violet:#7C3AED; --magenta:#C026D3;
+  --ink:#F5F3FF; --ink-soft:#A78BFA; --card:#160B30; --card-border:rgba(167,139,250,0.18);
+  --accent:#7C3AED; --accent-glow:rgba(124,58,237,0.35); --ok:#34D399; --bad:#FB7185;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--ink); font-family:'Inter',system-ui,sans-serif;
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding:16px;
+}
+body::before{
+  content:""; position:fixed; inset:0;
+  background: radial-gradient(ellipse 60% 40% at 80% -10%, rgba(124,58,237,0.35), transparent 60%),
+              radial-gradient(ellipse 50% 35% at 0% 20%, rgba(192,38,211,0.18), transparent 60%);
+  pointer-events:none;
+}
+.login-card{
+  position:relative; width:100%; max-width:440px; background:var(--card);
+  border:1px solid var(--card-border); border-radius:18px; padding:36px;
+  box-shadow:0 40px 80px -20px var(--accent-glow);
+}
+.scan-line{
+  position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, transparent, #22D3EE, #C026D3, transparent);
+  animation:scanx 2.4s linear infinite;
+}
+@keyframes scanx{ from{transform:translateX(-100%);} to{transform:translateX(100%);} }
+.brand{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:24px; text-align:center; margin-bottom:8px; }
+.brand-mark{color:var(--ink);} .brand-mark-ai{color:var(--accent);}
+.subtitle{ text-align:center; color:var(--ink-soft); font-size:14px; margin-bottom:24px; }
+.section-title{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px; color:var(--accent); margin:20px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--card-border); }
+.field{display:block;margin-bottom:14px;}
+.field span{display:block;font-size:13px;color:var(--ink-soft);margin-bottom:6px;}
+.field input,.field select,.field textarea{
+  width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--card-border);
+  border-radius:10px;padding:12px 14px;color:var(--ink);font-size:15px;outline:none;
+  transition:border-color .15s;font-family:inherit;
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.field select option{background:var(--bg-soft);color:var(--ink);}
+.field textarea{resize:vertical;min-height:60px;}
+.btn{
+  width:100%;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:600;
+  background:linear-gradient(135deg,var(--violet),var(--magenta));color:white;cursor:pointer;
+  transition:transform .15s,box-shadow .15s;margin-top:12px;
+}
+.btn:hover{box-shadow:0 6px 24px -4px var(--accent-glow);transform:translateY(-1px);}
+.errors{background:rgba(251,113,133,0.1);border:1px solid rgba(251,113,133,0.3);border-radius:10px;padding:12px;margin-bottom:16px;color:#FB7185;font-size:13px;}
+.auth-link{text-align:center;margin-top:20px;color:var(--ink-soft);font-size:14px;}
+.auth-link a{color:var(--accent);text-decoration:none;}
+.auth-link a:hover{text-decoration:underline;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.hint{font-size:11px;margin-top:4px;display:block;min-height:16px;}
+@media(max-width:480px){
+  .login-card{padding:24px;border-radius:14px}
+  .brand{font-size:20px}
+  .field input,.field select,.field textarea{padding:10px 12px;font-size:16px}
+  .btn{padding:12px;font-size:16px}
+  .field-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="scan-line"></div>
+  <div class="brand"><span class="brand-mark">WMS</span><span class="brand-mark-ai">·AI</span></div>
+  <p class="subtitle">Создайте аккаунт и бизнес</p>
+
+  {% if errors %}
+  <div class="errors">
+    {% for error in errors %}{{ error }}<br>{% endfor %}
+  </div>
+  {% endif %}
+
+  <form method="post" autocomplete="off">
+    {% csrf_token %}
+
+    <div class="section-title">Аккаунт</div>
+
+    <div class="field-row">
+      <label class="field">
+        <span>Имя *</span>
+        <input name="first_name" id="reg-firstname" placeholder="Ivan" required autofocus>
+      </label>
+      <label class="field">
+        <span>Фамилия</span>
+        <input name="last_name" placeholder="Ivanov">
+      </label>
+    </div>
+    <label class="field">
+      <span>Email *</span>
+      <input type="email" name="email" id="reg-email" placeholder="Ivan123@mail.ru" required oninput="debounceCheck('email')">
+      <small id="reg-email-hint" class="hint"></small>
+    </label>
+    <div class="field-row">
+      <label class="field">
+        <span>Пароль *</span>
+        <input type="password" name="password" placeholder="Минимум 8 символов" autocomplete="new-password" required minlength="8">
+      </label>
+      <label class="field">
+        <span>Повторите пароль *</span>
+        <input type="password" name="password2" placeholder="••••••••" autocomplete="new-password" required>
+      </label>
+    </div>
+
+    <div class="section-title">Бизнес</div>
+
+    <label class="field">
+      <span>Название бизнеса *</span>
+      <input name="biz_name" id="biz_name" placeholder="Мой магазин" required oninput="debounceCheck('name')">
+      <small id="name-hint" class="hint"></small>
+    </label>
+    <label class="field">
+      <span>Адрес в интернете *</span>
+      <input name="biz_slug" id="biz_slug" placeholder="мой-магазин" required oninput="debounceCheck('slug')">
+      <small class="hint"><span id="slug-preview">...</span>.wms-ai.ru <span id="slug-hint"></span></small>
+    </label>
+    <label class="field">
+      <span>Тип бизнеса</span>
+      <select name="biz_type" id="biz-type-select" onchange="toggleCustomType()">
+        <option value="retail">Розничная торговля</option>
+        <option value="wholesale">Оптовая торговля</option>
+        <option value="services">Услуги</option>
+        <option value="production">Производство</option>
+        <option value="other">Другое</option>
+      </select>
+    </label>
+    <label class="field" id="custom-type-field" style="display:none;">
+      <span>Введите тип вашего бизнеса</span>
+      <input name="biz_type_custom" id="biz-type-custom" placeholder="Например: интернет-магазин">
+    </label>
+    <label class="field">
+      <span>Телефон</span>
+      <input type="tel" name="biz_phone" id="biz_phone" placeholder="+7 (999) 123-45-67" oninput="formatPhone(this)">
+    </label>
+    <label class="field">
+      <span>Описание</span>
+      <textarea name="biz_description" placeholder="Кратко о вашем бизнесе..."></textarea>
+    </label>
+
+    <label style="display:flex;align-items:flex-start;gap:10px;margin:16px 0 8px;cursor:pointer;">
+      <input type="checkbox" name="consent_personal_data" required style="margin-top:3px;width:16px;height:16px;accent-color:var(--accent);flex-shrink:0;">
+      <span style="font-size:12px;color:var(--ink-soft);line-height:1.5;">
+        Я даю согласие на обработку персональных данных в соответствии с
+        <a href="/privacy/" target="_blank" style="color:var(--accent);">Политикой конфиденциальности</a>
+        (152-ФЗ «О персональных данных»)
+      </span>
+    </label>
+
+    <button type="submit" class="btn" id="submit-btn">Зарегистрироваться</button>
+  </form>
+
+  <p class="auth-link">
+    {% if user.is_authenticated %}
+      Вы уже залогинены. <a href="{% url 'logout' %}">Выйти</a> чтобы зарегистрировать нового сотрудника.
+    {% else %}
+      Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a>
+    {% endif %}
+  </p>
+</div>
+
+<script>
+  var basePath = window.location.pathname.replace(/register\/?$/, '');
+  var debounceTimers = {};
+
+  function debounceCheck(field) {
+    clearTimeout(debounceTimers[field]);
+    debounceTimers[field] = setTimeout(function() {
+      if (field === 'email') checkRegEmail();
+      if (field === 'name') checkBizName();
+      if (field === 'slug') { updateSlugPreview(); checkSlug(); }
+    }, 200);
+  }
+
+  // Auto-generate slug from name
+  var nameInput = document.getElementById('biz_name');
+  var slugInput = document.getElementById('biz_slug');
+  var slugPreview = document.getElementById('slug-preview');
+  nameInput.addEventListener('input', function() {
+    var slug = this.value.toLowerCase().replace(/[^a-z0-9а-яё]+/g, '-').replace(/^-|-$/g, '');
+    slugInput.value = slug;
+    slugPreview.textContent = slug || '...';
+    debounceCheck('slug');
+  });
+  slugInput.addEventListener('input', function() {
+    slugPreview.textContent = this.value || '...';
+  });
+
+  function updateSlugPreview() {
+    slugPreview.textContent = slugInput.value || '...';
+  }
+
+  // Email check
+  function checkRegEmail() {
+    var val = document.getElementById('reg-email').value.trim();
+    var hint = document.getElementById('reg-email-hint');
+    if (!val) { hint.textContent = ''; return; }
+    fetch(basePath + 'api/check-email/?email=' + encodeURIComponent(val))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        hint.innerHTML = d.available
+          ? '<span style="color:var(--ok);">✓ Email доступен</span>'
+          : '<span style="color:var(--bad);">✗ Email уже занят</span>';
+      })
+      .catch(function() { hint.textContent = ''; });
+  }
+
+  // Slug check
+  function checkSlug() {
+    var val = slugInput.value.trim();
+    var hint = document.getElementById('slug-hint');
+    if (!val) { hint.textContent = ''; return; }
+    fetch(basePath + 'api/check-slug/?slug=' + encodeURIComponent(val))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        hint.innerHTML = d.available
+          ? '<span style="color:var(--ok);">✓ Доступен</span>'
+          : '<span style="color:var(--bad);">✗ Занят</span>';
+      })
+      .catch(function() { hint.textContent = ''; });
+  }
+
+  // Business name check
+  function checkBizName() {
+    var val = nameInput.value.trim();
+    var hint = document.getElementById('name-hint');
+    if (!val) { hint.textContent = ''; return; }
+    fetch(basePath + 'api/check-business-name/?name=' + encodeURIComponent(val))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        hint.innerHTML = d.available
+          ? '<span style="color:var(--ok);">✓ Название свободно</span>'
+          : '<span style="color:var(--bad);">✗ Название уже занято</span>';
+      })
+      .catch(function() { hint.textContent = ''; });
+  }
+
+  // Custom type toggle
+  function toggleCustomType() {
+    var sel = document.getElementById('biz-type-select');
+    var field = document.getElementById('custom-type-field');
+    field.style.display = sel.value === 'other' ? '' : 'none';
+  }
+
+  // Phone auto-formatting
+  var phoneInput = document.getElementById('biz_phone');
+  phoneInput.addEventListener('input', function() {
+    var val = this.value.replace(/\D/g, '');
+    if (val.length === 0) { this.value = ''; return; }
+    if (val[0] === '7' || val[0] === '8') {
+      var formatted = '+7';
+      if (val.length > 1) formatted += ' (' + val.substring(1, 4);
+      if (val.length > 4) formatted += ') ' + val.substring(4, 7);
+      if (val.length > 7) formatted += '-' + val.substring(7, 9);
+      if (val.length > 9) formatted += '-' + val.substring(9, 11);
+      this.value = formatted;
+    } else {
+      this.value = '+7 (' + val;
+    }
+  });
+
+  // Prevent double submit
+  document.querySelector('form').addEventListener('submit', function() {
+    document.getElementById('submit-btn').disabled = true;
+    document.getElementById('submit-btn').textContent = 'Регистрация...';
+  });
+</script>
+{% include 'components/cookie_consent.html' %}
+</body>
+</html>

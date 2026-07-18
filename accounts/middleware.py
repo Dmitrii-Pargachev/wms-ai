@@ -63,6 +63,10 @@ class TenantMiddleware:
                     response = catalog_view(request)
                 except Http404:
                     response = self._render_landing(request)
+                except Exception as e:
+                    import logging
+                    logging.getLogger('tenants').error(f'Catalog error: {e}')
+                    response = self._render_landing(request)
                 finally:
                     self.tenant_router.set_current_db(None)
                 return response
@@ -74,10 +78,6 @@ class TenantMiddleware:
 
             # /system/* — require auth + membership (existing dashboard)
             if path.startswith('/system'):
-                # Remove /system prefix for downstream URL resolution
-                request.path_info = request.path_info.replace('/system', '', 1)
-                request.path = request.path.replace('/system', '', 1)
-
                 if not request.user.is_authenticated:
                     return redirect(f'{settings.LOGIN_URL}?next={request.path}')
 
@@ -91,8 +91,17 @@ class TenantMiddleware:
                         return JsonResponse({'error': 'Access denied'}, status=403)
                     return redirect(f'{settings.LOGIN_URL}')
 
+                # Authenticated + member — serve the dashboard
+                try:
+                    response = self.get_response(request)
+                except Http404:
+                    return self._render_landing(request)
+                finally:
+                    self.tenant_router.set_current_db(None)
+                return response
+
             # Catalog API (public, no auth)
-            if path.startswith('/api/catalog'):
+            if path.startswith('/api/catalog') or path.startswith('/api/ai'):
                 try:
                     response = self.get_response(request)
                 except Http404:
@@ -178,7 +187,10 @@ class TenantMiddleware:
         from io import StringIO
         out = StringIO()
         try:
-            call_command('migrate', database=db_alias, verbosity=0, stdout=out)
+            call_command('migrate', database=db_alias, verbosity=1, stdout=out)
+            import logging
+            logger = logging.getLogger('tenants')
+            logger.info(f'Migrated tenant DB {db_alias}: {out.getvalue()[-200:]}')
         except Exception as e:
             import logging
             logger = logging.getLogger('tenants')

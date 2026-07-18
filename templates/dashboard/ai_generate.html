@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}WMS·AI — ИИ генерация{% endblock %}
+{% block body %}
+<div class="app-layout">
+  {% include 'dashboard/components/sidebar.html' with active='ai' %}
+
+  <main class="main-content">
+    <header class="header">
+      <div>
+        <h1>🎨 ИИ генерация</h1>
+        <p class="header-sub">Создание изображений товаров через Google Gemini</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="avatar" style="{% if user.profile.avatar %}background-image:url('/media/{{ user.profile.avatar }}?t=1');background-size:cover;background-position:center;{% endif %}">{% if not user.profile.avatar %}{{ user.username|truncatechars:2 }}{% endif %}</div>
+      </div>
+    </header>
+
+    <div class="card">
+      <h2 style="margin-bottom:16px;">Генерация изображения</h2>
+
+      <div class="field">
+        <span>Промпт</span>
+        <textarea id="aiPrompt" rows="3" placeholder="Опишите изображение, например: Кожаный ремень ручной работы, тёмно-коричневый, на мраморной поверхности, студийное освещение" style="width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--card-border);border-radius:10px;padding:12px 14px;color:var(--ink);font-size:14px;outline:none;resize:vertical;font-family:inherit;"></textarea>
+      </div>
+
+      <div class="field">
+        <span>Изображение товара или референс</span>
+        <label class="ai-upload-zone" id="aiUploadZone">
+          <input type="file" id="aiRefFile" accept=".png,.jpg,.jpeg,.webp,.gif" style="display:none;" onchange="uploadFile(this)">
+          <div class="ai-upload-icon">📁</div>
+          <div class="ai-upload-text">Нажмите или перетащите файл</div>
+          <div class="ai-upload-hint">PNG, JPG, WebP — до 10 МБ</div>
+        </label>
+        <div id="aiRefPreview" style="margin-top:10px;display:none;">
+          <div style="display:flex;gap:12px;align-items:center;background:var(--bg-soft);border:1px solid var(--card-border);border-radius:10px;padding:12px;">
+            <img id="aiRefImg" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--card-border);">
+            <div style="flex:1;">
+              <div id="aiRefName" style="font-size:13px;font-weight:500;color:var(--ink);"></div>
+              <div id="aiRefSize" style="font-size:11px;color:var(--ink-soft);"></div>
+              <div id="aiRefStatus" style="font-size:12px;margin-top:2px;"></div>
+            </div>
+            <button onclick="clearRef()" style="background:none;border:none;color:var(--bad);cursor:pointer;font-size:18px;line-height:1;">&times;</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="aiGenerateBtn" onclick="generateImage()" style="width:100%;padding:14px;font-size:15px;">
+        🎨 Сгенерировать
+      </button>
+
+      <div id="aiStatus" style="margin-top:12px;font-size:13px;display:none;"></div>
+    </div>
+
+    <div class="card" id="aiResult" style="display:none;">
+      <h2 style="margin-bottom:16px;">Результат</h2>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;">
+        <div>
+          <img id="aiResultImg" style="max-width:300px;border-radius:12px;border:1px solid var(--card-border);">
+        </div>
+        <div style="flex:1;min-width:200px;">
+          <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;">Применить к товару:</p>
+          <select id="aiProductSelect" style="width:100%;margin-bottom:12px;background:rgba(255,255,255,0.04);border:1px solid var(--card-border);border-radius:10px;padding:12px 14px;color:var(--ink);font-size:14px;outline:none;font-family:inherit;">
+            <option value="">— Выберите товар —</option>
+            {% for p in products %}
+            <option value="{{ p.id }}">{{ p.name }}{% if p.article %} ({{ p.article }}){% endif %}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-primary" onclick="applyToProduct()" style="width:100%;padding:12px;">Применить к товару</button>
+          <div id="aiApplyStatus" style="font-size:13px;color:var(--ok);display:none;margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div onclick="toggleDirect()" style="cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none;">
+        <span class="toggle-icon" id="directToggleIcon" style="font-size:12px;color:var(--ink-soft);">▸</span>
+        <h2 style="margin:0;">📷 Загрузить фото без генерации ИИ</h2>
+      </div>
+      <div id="directContent" style="display:none;margin-top:16px;">
+        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">Если у вас уже есть готовое фото товара — загрузите его напрямую и присвойте товару. ИИ-генерация не используется.</p>
+
+      <div class="field">
+        <span>Выберите файл</span>
+        <label class="ai-upload-zone" id="directUploadZone" style="padding:20px;">
+          <input type="file" id="directFile" accept=".png,.jpg,.jpeg,.webp,.gif" style="display:none;" onchange="previewDirectFile(this)">
+          <div class="ai-upload-icon">📁</div>
+          <div class="ai-upload-text">Нажмите или перетащите фото</div>
+          <div class="ai-upload-hint">PNG, JPG, WebP</div>
+        </label>
+        <div id="directPreview" style="margin-top:10px;display:none;">
+          <div style="display:flex;gap:12px;align-items:center;background:var(--bg-soft);border:1px solid var(--card-border);border-radius:10px;padding:12px;">
+            <img id="directPreviewImg" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--card-border);">
+            <div style="flex:1;">
+              <div id="directFileName" style="font-size:13px;font-weight:500;color:var(--ink);"></div>
+              <div id="directFileSize" style="font-size:11px;color:var(--ink-soft);"></div>
+              <div id="directStatus" style="font-size:12px;margin-top:2px;"></div>
+            </div>
+            <button onclick="clearDirect()" style="background:none;border:none;color:var(--bad);cursor:pointer;font-size:18px;">&times;</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <span>Товар</span>
+        <select id="directProductSelect" style="width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--card-border);border-radius:10px;padding:12px 14px;color:var(--ink);font-size:14px;outline:none;font-family:inherit;">
+          <option value="">— Выберите товар —</option>
+          {% for p in products %}
+          <option value="{{ p.id }}">{{ p.name }}{% if p.article %} ({{ p.article }}){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button class="btn btn-primary" onclick="applyDirectPhoto()" style="width:100%;padding:12px;">Применить фото к товару</button>
+      <div id="directApplyStatus" style="font-size:13px;margin-top:8px;display:none;"></div>
+      </div>
+    </div>
+
+    <div class="card" id="aiHistory" style="display:none;">
+      <h2 style="margin-bottom:12px;">История генераций</h2>
+      <div id="aiHistoryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;"></div>
+    </div>
+  </main>
+</div>
+
+<style>
+.ai-upload-zone{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border:2px dashed var(--card-border);border-radius:12px;padding:32px 20px;
+  cursor:pointer;transition:all .2s ease;text-align:center;
+}
+.ai-upload-zone:hover{border-color:var(--accent);background:rgba(124,58,237,0.05);}
+.ai-upload-zone.dragover{border-color:var(--accent);background:rgba(124,58,237,0.1);}
+.ai-upload-icon{font-size:32px;margin-bottom:8px;}
+.ai-upload-text{font-size:14px;font-weight:500;color:var(--ink);}
+.ai-upload-hint{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+</style>
+
+<script>
+let uploadedUrl = null;
+let generatedImageUrl = '';
+let generationHistory = [];
+let directUploadedUrl = null;
+
+function toggleDirect(){
+  const el = document.getElementById('directContent');
+  const icon = document.getElementById('directToggleIcon');
+  if(el.style.display === 'none'){
+    el.style.display = 'block';
+    icon.textContent = '▾';
+  } else {
+    el.style.display = 'none';
+    icon.textContent = '▸';
+  }
+}
+
+// Direct photo upload
+const directZone = document.getElementById('directUploadZone');
+directZone.addEventListener('dragover', e => { e.preventDefault(); directZone.classList.add('dragover'); });
+directZone.addEventListener('dragleave', () => directZone.classList.remove('dragover'));
+directZone.addEventListener('drop', e => {
+  e.preventDefault();
+  directZone.classList.remove('dragover');
+  if(e.dataTransfer.files.length > 0){
+    const input = document.getElementById('directFile');
+    input.files = e.dataTransfer.files;
+    previewDirectFile(input);
+  }
+});
+
+function previewDirectFile(input){
+  if(!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = function(e){
+    document.getElementById('directPreviewImg').src = e.target.result;
+    document.getElementById('directFileName').textContent = file.name;
+    document.getElementById('directFileSize').textContent = (file.size/1024).toFixed(0) + ' КБ';
+    document.getElementById('directPreview').style.display = 'block';
+    document.getElementById('directUploadZone').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearDirect(){
+  directUploadedUrl = null;
+  document.getElementById('directFile').value = '';
+  document.getElementById('directPreview').style.display = 'none';
+  document.getElementById('directUploadZone').style.display = 'flex';
+}
+
+async function applyDirectPhoto(){
+  const productId = document.getElementById('directProductSelect').value;
+  if(!productId){ alert('Выберите товар'); return; }
+
+  const fileInput = document.getElementById('directFile');
+  if(!fileInput.files || !fileInput.files[0]){
+    alert('Сначала загрузите файл');
+    return;
+  }
+
+  const status = document.getElementById('directApplyStatus');
+  status.style.display = 'block';
+  status.textContent = '⏳ Загрузка...';
+  status.style.color = 'var(--ink-soft)';
+
+  // Upload file first
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+
+  try {
+    const uploadRes = await fetch('/api/ai/upload/', { method: 'POST', body: fd });
+    const uploadData = await uploadRes.json();
+    if(!uploadData.ok){
+      status.textContent = '❌ ' + (uploadData.error || 'Ошибка загрузки');
+      status.style.color = 'var(--bad)';
+      return;
+    }
+
+    // Apply to product
+    const applyRes = await fetch(`/api/ai/apply/${productId}/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ image_url: uploadData.url })
+    });
+    const applyData = await applyRes.json();
+    if(applyData.ok){
+      status.textContent = '✅ Фото применено к товару';
+      status.style.color = 'var(--ok)';
+      clearDirect();
+    } else {
+      status.textContent = '❌ ' + (applyData.error || 'Ошибка');
+      status.style.color = 'var(--bad)';
+    }
+  } catch(e) {
+    status.textContent = '❌ Ошибка сети';
+    status.style.color = 'var(--bad)';
+  }
+}
+
+// Drag & drop
+const zone = document.getElementById('aiUploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('dragover');
+  if(e.dataTransfer.files.length > 0){
+    const input = document.getElementById('aiRefFile');
+    input.files = e.dataTransfer.files;
+    uploadFile(input);
+  }
+});
+
+async function uploadFile(input){
+  if(!input.files || !input.files[0]) return;
+  const file = input.files[0];
+
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = function(e){
+    document.getElementById('aiRefImg').src = e.target.result;
+    document.getElementById('aiRefName').textContent = file.name;
+    document.getElementById('aiRefSize').textContent = (file.size/1024).toFixed(0) + ' КБ';
+    document.getElementById('aiRefPreview').style.display = 'block';
+    document.getElementById('aiUploadZone').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+
+  // Upload to server
+  document.getElementById('aiRefStatus').textContent = '⏳ Загрузка...';
+  document.getElementById('aiRefStatus').style.color = 'var(--ink-soft)';
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const res = await fetch('/api/ai/upload/', { method: 'POST', body: fd });
+    const data = await res.json();
+    if(data.ok){
+      uploadedUrl = data.url;
+      document.getElementById('aiRefStatus').textContent = '✅ Загружено на сервер';
+      document.getElementById('aiRefStatus').style.color = 'var(--ok)';
+    } else {
+      document.getElementById('aiRefStatus').textContent = '❌ ' + (data.error || 'Ошибка');
+      document.getElementById('aiRefStatus').style.color = 'var(--bad)';
+    }
+  } catch(e) {
+    document.getElementById('aiRefStatus').textContent = '❌ Ошибка сети';
+    document.getElementById('aiRefStatus').style.color = 'var(--bad)';
+  }
+}
+
+function clearRef(){
+  uploadedUrl = null;
+  document.getElementById('aiRefFile').value = '';
+  document.getElementById('aiRefPreview').style.display = 'none';
+  document.getElementById('aiUploadZone').style.display = 'flex';
+}
+
+async function generateImage(){
+  const prompt = document.getElementById('aiPrompt').value.trim();
+  if(!prompt){ alert('Введите промпт'); return; }
+
+  const btn = document.getElementById('aiGenerateBtn');
+  const status = document.getElementById('aiStatus');
+  btn.disabled = true;
+  btn.textContent = '⏳ Генерация...';
+  status.style.display = 'block';
+  status.textContent = 'Отправка запроса в Google Gemini...';
+  status.style.color = 'var(--ink-soft)';
+
+  try {
+    const res = await fetch('/api/ai/generate/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ prompt, image_url: uploadedUrl || '' })
+    });
+
+    const ct = res.headers.get('content-type') || '';
+    if(!ct.includes('json')){
+      status.textContent = '❌ Сервер вернул ошибку';
+      status.style.color = 'var(--bad)';
+      btn.disabled = false;
+      btn.textContent = '🎨 Сгенерировать';
+      return;
+    }
+
+    const data = await res.json();
+
+    if(data.ok && data.image_url){
+      generatedImageUrl = data.image_url;
+      document.getElementById('aiResultImg').src = data.image_url;
+      document.getElementById('aiResult').style.display = 'block';
+      status.textContent = '✅ Изображение сгенерировано';
+      status.style.color = 'var(--ok)';
+      generationHistory.unshift({ prompt, url: data.image_url });
+      renderHistory();
+    } else {
+      status.textContent = '❌ ' + (data.error || 'Ошибка генерации');
+      status.style.color = 'var(--bad)';
+    }
+  } catch(e) {
+    status.textContent = '❌ Ошибка: ' + e.message;
+    status.style.color = 'var(--bad)';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🎨 Сгенерировать';
+}
+
+async function applyToProduct(){
+  const productId = document.getElementById('aiProductSelect').value;
+  if(!productId){ alert('Выберите товар'); return; }
+  if(!generatedImageUrl){ alert('Сначала сгенерируйте изображение'); return; }
+
+  try {
+    const res = await fetch('/api/ai/apply/' + productId + '/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ image_url: generatedImageUrl })
+    });
+    const data = await res.json();
+    if(data.ok){
+      const s = document.getElementById('aiApplyStatus');
+      s.style.display = 'block';
+      s.textContent = '✅ Изображение применено к товару';
+      setTimeout(() => s.style.display = 'none', 3000);
+    } else {
+      alert(data.error || 'Ошибка');
+    }
+  } catch(e) {
+    alert('Ошибка сети');
+  }
+}
+
+function renderHistory(){
+  if(generationHistory.length === 0){
+    document.getElementById('aiHistory').style.display = 'none';
+    return;
+  }
+  document.getElementById('aiHistory').style.display = 'block';
+  document.getElementById('aiHistoryGrid').innerHTML = generationHistory.map(h => `
+    <div style="cursor:pointer;border:1px solid var(--card-border);border-radius:8px;overflow:hidden;" onclick="document.getElementById('aiResultImg').src='${h.url}';generatedImageUrl='${h.url}';document.getElementById('aiResult').style.display='block';">
+      <img src="${h.url}" style="width:100%;aspect-ratio:1/1;object-fit:cover;">
+      <div style="font-size:11px;color:var(--ink-soft);padding:6px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${h.prompt}">${h.prompt}</div>
+    </div>
+  `).join('');
+}
+</script>
+{% endblock %}

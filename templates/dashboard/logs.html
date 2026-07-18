@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}WMS·AI — Журнал действий{% endblock %}
+
+{% block body %}
+<div class="app-layout">
+  {% include 'dashboard/components/sidebar.html' with active='logs' %}
+
+  <main class="main-content">
+    <header class="header">
+      <div>
+        <h1>📋 Журнал действий</h1>
+        <p class="header-sub">{{ business.name }}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="avatar" style="{% if user.profile.avatar %}background-image:url('/media/{{ user.profile.avatar }}?t=1');background-size:cover;background-position:center;{% endif %}">{% if not user.profile.avatar %}{{ user.username|truncatechars:2 }}{% endif %}</div>
+      </div>
+    </header>
+
+    <div class="filters-bar" id="logFilters">
+      <button class="filter-btn active" onclick="filterLogs(this,'')">Все</button>
+      <button class="filter-btn" onclick="filterLogs(this,'auth')">🔑 Входы</button>
+      <button class="filter-btn" onclick="filterLogs(this,'stock')">📦 Товары</button>
+      <button class="filter-btn" onclick="filterLogs(this,'supply')">📥 Поставки</button>
+      <button class="filter-btn" onclick="filterLogs(this,'sale')">💰 Продажи</button>
+      <button class="filter-btn" onclick="filterLogs(this,'order')">🛒 Заказы</button>
+      <button class="filter-btn" onclick="filterLogs(this,'user')">👤 Сотрудники</button>
+      <button class="filter-btn" onclick="filterLogs(this,'settings')">⚙️ Настройки</button>
+    </div>
+
+    <div class="card">
+      <div id="logs-list" style="display:flex;flex-direction:column;gap:1px;">
+        <div style="text-align:center;padding:40px;color:var(--ink-soft);">Загрузка...</div>
+      </div>
+      <div id="logs-empty" style="display:none;text-align:center;padding:40px;color:var(--ink-soft);">
+        Нет событий
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+var allLogs = [];
+var LOG_TYPES = {
+  auth:     { label: 'Вход',       color: 'var(--ink-soft)', icon: '🔑' },
+  stock:    { label: 'Товар',      color: 'var(--ok)',       icon: '📦' },
+  product:  { label: 'Товар',      color: 'var(--ok)',       icon: '📦' },
+  supply:   { label: 'Поставка',   color: 'var(--accent)',   icon: '📥' },
+  sale:     { label: 'Продажа',    color: 'var(--warn)',     icon: '💰' },
+  order:    { label: 'Заказ',      color: 'var(--cyan)',     icon: '🛒' },
+  user:     { label: 'Сотрудник',  color: 'var(--magenta)',  icon: '👤' },
+  price:    { label: 'Цена',       color: 'var(--warn)',     icon: '💲' },
+  settings: { label: 'Настройки',  color: 'var(--ink-soft)', icon: '⚙️' },
+};
+
+async function loadLogs(type) {
+  try {
+    var url = '/api/logs/';
+    if (type) url += '?type=' + type;
+    var res = await fetch(url);
+    var data = await res.json();
+    allLogs = data.logs || data;
+    renderLogs(allLogs);
+  } catch (e) {
+    console.error('Failed to load logs:', e);
+  }
+}
+
+function renderLogs(logs) {
+  var container = document.getElementById('logs-list');
+  var empty = document.getElementById('logs-empty');
+
+  if (!logs || logs.length === 0) {
+    container.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  var html = '';
+  for (var i = 0; i < logs.length; i++) {
+    var log = logs[i];
+    var cfg = LOG_TYPES[log.type] || { label: log.type_display || log.type, color: 'var(--ink-soft)', icon: '📋' };
+    html += '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;background:var(--bg-soft);">' +
+      '<div style="font-size:18px;margin-top:2px;">' + cfg.icon + '</div>' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:13px;color:var(--ink);line-height:1.4;">' + log.action + '</div>' +
+        '<div style="display:flex;gap:12px;margin-top:4px;font-size:11px;color:var(--ink-soft);">' +
+          '<span>' + log.created_at + '</span>' +
+          (log.user ? '<span>👤 ' + log.user + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<span style="font-size:11px;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,0.06);color:' + cfg.color + ';white-space:nowrap;">' + cfg.label + '</span>' +
+    '</div>';
+  }
+  container.innerHTML = html;
+}
+
+function filterLogs(btn, type) {
+  document.querySelectorAll('#logFilters .filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  if (type) {
+    renderLogs(allLogs.filter(function(l) { return l.type === type; }));
+  } else {
+    renderLogs(allLogs);
+  }
+}
+
+loadLogs('');
+</script>
+{% endblock %}

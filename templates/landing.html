@@ -1,0 +1,114 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WMS·AI — Система для малого бизнеса</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0A0118;--bg-soft:#120A28;--violet:#7C3AED;--magenta:#C026D3;--cyan:#22D3EE;--ink:#F5F3FF;--ink-soft:#A78BFA;--card:#160B30;--card-border:rgba(167,139,250,0.18);--ok:#34D399;--warn:#FBBF24;--bad:#FB7185;--accent:#7C3AED;--accent-glow:rgba(124,58,237,0.35)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;background:radial-gradient(ellipse 60% 40% at 80% -10%,rgba(124,58,237,0.35),transparent 60%),radial-gradient(ellipse 50% 35% at 0% 20%,rgba(192,38,211,0.18),transparent 60%);pointer-events:none;z-index:-1}
+.hero{max-width:900px;margin:0 auto;padding:80px 24px 60px;text-align:center}
+.brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:48px;margin-bottom:12px}
+.brand-mark{color:var(--ink)}.brand-ai{color:var(--accent)}
+.hero-sub{font-size:20px;color:var(--ink-soft);margin-bottom:40px;line-height:1.5}
+.hero-sub b{color:var(--ink)}
+.scan-line{height:2px;background:linear-gradient(90deg,transparent,var(--cyan),var(--magenta),transparent);animation:scanx 3s linear infinite;margin-bottom:48px}
+@keyframes scanx{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:48px}
+.feature{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:28px 20px;text-align:center;transition:border-color .2s,transform .2s}
+.feature:hover{border-color:var(--accent);transform:translateY(-4px)}
+.feature-icon{font-size:36px;margin-bottom:12px}
+.feature-title{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:17px;margin-bottom:8px}
+.feature-desc{font-size:13px;color:var(--ink-soft);line-height:1.5}
+.cta{margin-bottom:60px}
+.cta-btn{display:inline-block;padding:16px 40px;background:linear-gradient(135deg,var(--violet),var(--magenta));color:white;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:18px;border:none;border-radius:12px;cursor:pointer;transition:transform .15s,box-shadow .15s;text-decoration:none}
+.cta-btn:hover{box-shadow:0 8px 32px -4px var(--accent-glow);transform:translateY(-2px);text-decoration:none}
+.cta-sub{font-size:13px;color:var(--ink-soft);margin-top:12px}
+.stats{display:flex;justify-content:center;gap:48px;margin-bottom:60px}
+.stat-num{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:32px;color:var(--accent)}
+.stat-label{font-size:13px;color:var(--ink-soft);margin-top:4px}
+.footer{border-top:1px solid var(--card-border);padding:24px;text-align:center;font-size:13px;color:var(--ink-soft)}
+@media(max-width:768px){.features{grid-template-columns:1fr;gap:14px}.brand{font-size:32px}.hero{padding:40px 16px 30px}.hero-sub{font-size:16px}.stats{flex-direction:column;gap:20px}.cta-btn{display:block;width:100%;text-align:center}.cta-sub{font-size:12px}.feature{padding:20px 16px}}
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="brand"><span class="brand-mark">WMS</span><span class="brand-ai">·AI</span></div>
+
+  {% if unknown_subdomain %}
+  <div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:14px;padding:24px 28px;margin-bottom:32px;text-align:center;">
+    <p style="font-size:18px;color:var(--ink);margin:0 0 8px;">Этот адрес не зарегистрирован</p>
+    <p style="font-size:14px;color:var(--ink-soft);margin:0 0 20px;">Создайте свой бизнес и получите персональный поддомен для управления складом и сайтом</p>
+    <a href="/register/" style="display:inline-block;padding:12px 32px;background:linear-gradient(135deg,var(--violet),var(--magenta));color:white;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;border-radius:10px;text-decoration:none;">Создать бизнес</a>
+  </div>
+  {% endif %}
+
+  <p class="hero-sub">Система для <b>малого бизнеса</b>, которая управляет складом, сайтом и продажами в одном месте.<br>Генерация карточек товаров, автоматическое обновление наличия, приём заявок — всё из одной панели.</p>
+  <div class="scan-line"></div>
+
+  <div class="features">
+    <div class="feature">
+      <div class="feature-icon">🌐</div>
+      <div class="feature-title">Управление сайтом</div>
+      <div class="feature-desc">Ваш сайт с каталогом товаров, корзиной и онлайн-приёмом заявок. Обновляется автоматически.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🖼️</div>
+      <div class="feature-title">Генерация карточек</div>
+      <div class="feature-desc">AI создаёт профессиональные фото товаров для сайта. Загрузите — и карточка готова.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📦</div>
+      <div class="feature-title">Склад и остатки</div>
+      <div class="feature-desc">Приёмка, списание, инвентаризация. Остатки обновляются в реальном времени.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🛒</div>
+      <div class="feature-title">Заявки и продажи</div>
+      <div class="feature-desc">Клиенты оставляют заявки на сайте. Вы обрабатываете их из одной таблицы.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">Аналитика и отчёты</div>
+      <div class="feature-desc">Продажи, выручка, топ товаров. Отчёты за один клик — HTML или PDF.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🏪</div>
+      <div class="feature-title">Для каждого — своё</div>
+      <div class="feature-desc">Каждый бизнес работает отдельно. Свои товары, свои клиенты, свой поддомен.</div>
+    </div>
+  </div>
+
+  <div class="cta">
+    <a href="/register/" class="cta-btn">Начать бесплатно</a>
+    <p class="cta-sub">Бесплатно · Без привязки карты · Готово за 5 минут</p>
+    <p style="margin-top:16px;"><a href="/login/" style="color:var(--accent);font-size:15px;font-weight:500;">Войти в систему →</a></p>
+  </div>
+
+  <div class="stats">
+    <div>
+      <div class="stat-num">3</div>
+      <div class="stat-label">Минуты на настройку</div>
+    </div>
+    <div>
+      <div class="stat-num">24/7</div>
+      <div class="stat-label">Доступ из любого устройства</div>
+    </div>
+    <div>
+      <div class="stat-num">∞</div>
+      <div class="stat-label">Товаров в каталоге</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  WMS·AI &copy; 2026 · Система для малого бизнеса
+</div>
+{% include 'components/cookie_consent.html' %}
+</body>
+</html>

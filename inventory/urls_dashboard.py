@@ -1,6 +1,6 @@
 from django.urls import path
 from . import dashboard_views
-from inventory import order_views
+from inventory import order_views, ai_views
 
 urlpatterns = [
     path('', dashboard_views.dashboard_view, name='dashboard'),
@@ -14,4 +14,5 @@ urlpatterns = [
     path('constructor/', dashboard_views.constructor_view, name='constructor'),
     path('clients/', dashboard_views.clients_view, name='clients'),
     path('orders/', order_views.orders_view, name='orders'),
+    path('ai/', ai_views.ai_generate_view, name='ai_generate'),
 ]

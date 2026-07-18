@@ -6,7 +6,10 @@
       <span>📊</span> Дашборд
     </a>
     <a href="{% url 'inventory' %}" class="nav-item {% if active == 'inventory' %}active{% endif %}">
-      <span>📦</span> Склад
+      <span>📦</span> Склад (товары)
+    </a>
+    <a href="{% url 'orders' %}" class="nav-item {% if active == 'orders' %}active{% endif %}">
+      <span>🛒</span> Заказы
     </a>
     <a href="{% url 'supplies' %}" class="nav-item {% if active == 'supplies' %}active{% endif %}">
       <span>📥</span> Поставки
@@ -14,33 +17,24 @@
     <a href="{% url 'sales' %}" class="nav-item {% if active == 'sales' %}active{% endif %}">
       <span>📤</span> Продажи
     </a>
-    <a href="{% url 'analytics' %}" class="nav-item {% if active == 'analytics' %}active{% endif %}">
-      <span>📈</span> Аналитика
+    <a href="{% url 'clients' %}" class="nav-item {% if active == 'clients' %}active{% endif %}">
+      <span>👥</span> Клиенты
     </a>
-    <a href="{% url 'reports' %}" class="nav-item {% if active == 'reports' %}active{% endif %}">
-      <span>📋</span> Отчёты
+    <a href="{% url 'constructor' %}" class="nav-item {% if active == 'constructor' %}active{% endif %}">
+      <span>🔧</span> Конструктор таблиц
+    </a>
+    <a href="{% url 'ai_generate' %}" class="nav-item {% if active == 'ai' %}active{% endif %}">
+      <span>🎨</span> ИИ генерация
+    </a>
+    <a href="{% url 'logs' %}" class="nav-item {% if active == 'logs' %}active{% endif %}">
+      <span>📋</span> Журнал действий
     </a>
     <a href="{% url 'settings' %}" class="nav-item {% if active == 'settings' %}active{% endif %}">
       <span>⚙️</span> Настройки
     </a>
-    <a href="{% url 'logs' %}" class="nav-item {% if active == 'logs' %}active{% endif %}">
-      <span>📋</span> Журнал
-    </a>
-    <a href="{% url 'constructor' %}" class="nav-item {% if active == 'constructor' %}active{% endif %}">
-      <span>🔧</span> Конструктор
-    </a>
-    <a href="{% url 'clients' %}" class="nav-item {% if active == 'clients' %}active{% endif %}">
-      <span>👥</span> Клиенты
-    </a>
-    <a href="{% url 'orders' %}" class="nav-item {% if active == 'orders' %}active{% endif %}">
-      <span>📦</span> Заказы
-    </a>
   </nav>
-  <div class="side-ai-tip">
-    <span class="ai-dot"></span>
-    <p><strong>AI-подсказка:</strong> запасы обновляются автоматически.</p>
-  </div>
-  <a href="{% url 'logout' %}" class="nav-item" style="text-decoration:none;margin-top:4px;">
+  <div style="flex:1;"></div>
+  <a href="{% url 'logout' %}" class="nav-item" style="text-decoration:none;">
     <span>🚪</span> Выйти
   </a>
 </aside>

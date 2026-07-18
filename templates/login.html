@@ -1,0 +1,99 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>WMS·AI — Вход</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0118; --bg-soft:#120A28; --violet:#7C3AED; --magenta:#C026D3;
+  --ink:#F5F3FF; --ink-soft:#A78BFA; --card:#160B30; --card-border:rgba(167,139,250,0.18);
+  --accent:#7C3AED; --accent-glow:rgba(124,58,237,0.35);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--ink); font-family:'Inter',system-ui,sans-serif;
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+}
+body::before{
+  content:""; position:fixed; inset:0;
+  background: radial-gradient(ellipse 60% 40% at 80% -10%, rgba(124,58,237,0.35), transparent 60%),
+              radial-gradient(ellipse 50% 35% at 0% 20%, rgba(192,38,211,0.18), transparent 60%);
+  pointer-events:none;
+}
+.login-card{
+  position:relative; width:100%; max-width:380px; background:var(--card);
+  border:1px solid var(--card-border); border-radius:18px; padding:36px;
+  box-shadow:0 40px 80px -20px var(--accent-glow);
+}
+.scan-line{
+  position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, transparent, #22D3EE, #C026D3, transparent);
+  animation:scanx 2.4s linear infinite;
+}
+@keyframes scanx{ from{transform:translateX(-100%);} to{transform:translateX(100%);} }
+.brand{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:24px; text-align:center; margin-bottom:8px; }
+.brand-mark{color:var(--ink);} .brand-mark-ai{color:var(--accent);}
+.subtitle{ text-align:center; color:var(--ink-soft); font-size:14px; margin-bottom:28px; }
+.field{display:block;margin-bottom:16px;}
+.field span{display:block;font-size:13px;color:var(--ink-soft);margin-bottom:6px;}
+.field input{
+  width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--card-border);
+  border-radius:10px;padding:12px 14px;color:var(--ink);font-size:15px;outline:none;
+  transition:border-color .15s;font-family:inherit;
+}
+.field input:focus{border-color:var(--accent);}
+.btn{
+  width:100%;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:600;
+  background:linear-gradient(135deg,var(--violet),var(--magenta));color:white;cursor:pointer;
+  transition:transform .15s,box-shadow .15s;margin-top:8px;
+}
+.btn:hover{box-shadow:0 6px 24px -4px var(--accent-glow);transform:translateY(-1px);}
+.errors{background:rgba(251,113,133,0.1);border:1px solid rgba(251,113,133,0.3);border-radius:10px;padding:12px;margin-bottom:16px;color:#FB7185;font-size:13px;}
+.auth-link{text-align:center;margin-top:20px;color:var(--ink-soft);font-size:14px;}
+.auth-link a{color:var(--accent);text-decoration:none;}
+.auth-link a:hover{text-decoration:underline;}
+@media(max-width:480px){
+  .login-card{margin:16px;padding:24px;border-radius:14px}
+  .brand{font-size:20px}
+  .field input{padding:10px 12px;font-size:16px}
+  .btn{padding:12px;font-size:16px}
+}
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="scan-line"></div>
+  <div class="brand"><span class="brand-mark">WMS</span><span class="brand-mark-ai">·AI</span></div>
+  <p class="subtitle">Вход в складскую систему</p>
+
+  {% if error %}
+  <div class="errors">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" autocomplete="off">
+    {% csrf_token %}
+    <label class="field">
+      <span>Email</span>
+      <input type="email" name="email" placeholder="admin@example.com" autocomplete="off" required autofocus>
+    </label>
+    <label class="field">
+      <span>Пароль</span>
+      <input type="password" name="password" placeholder="••••••••" autocomplete="new-password" required>
+    </label>
+    <button type="submit" class="btn">Войти</button>
+  </form>
+
+  <p class="auth-link">
+    Нет аккаунта? <a href="/register/">Зарегистрироваться</a>
+  </p>
+  <p class="auth-link" style="margin-top:12px;font-size:12px;">
+    <a href="/">На главную страницу</a>
+  </p>
+</div>
+{% include 'components/cookie_consent.html' %}
+</body>
+</html>

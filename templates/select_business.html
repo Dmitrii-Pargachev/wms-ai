@@ -1,0 +1,96 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WMS·AI — Выбор бизнеса</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0118; --bg-soft:#120A28; --violet:#7C3AED; --magenta:#C026D3;
+  --ink:#F5F3FF; --ink-soft:#A78BFA; --card:#160B30; --card-border:rgba(167,139,250,0.18);
+  --accent:#7C3AED; --accent-glow:rgba(124,58,237,0.35);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--ink); font-family:'Inter',system-ui,sans-serif;
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+}
+body::before{
+  content:""; position:fixed; inset:0;
+  background: radial-gradient(ellipse 60% 40% at 80% -10%, rgba(124,58,237,0.35), transparent 60%),
+              radial-gradient(ellipse 50% 35% at 0% 20%, rgba(192,38,211,0.18), transparent 60%);
+  pointer-events:none;
+}
+.login-card{
+  position:relative; width:100%; max-width:380px; background:var(--card);
+  border:1px solid var(--card-border); border-radius:18px; padding:36px;
+  box-shadow:0 40px 80px -20px var(--accent-glow);
+}
+.scan-line{
+  position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, transparent, #22D3EE, #C026D3, transparent);
+  animation:scanx 2.4s linear infinite;
+}
+@keyframes scanx{ from{transform:translateX(-100%);} to{transform:translateX(100%);} }
+.brand{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:24px; text-align:center; margin-bottom:8px; }
+.brand-mark{color:var(--ink);} .brand-mark-ai{color:var(--accent);}
+.subtitle{ text-align:center; color:var(--ink-soft); font-size:14px; margin-bottom:28px; }
+.btn{
+  width:100%;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:600;
+  background:linear-gradient(135deg,var(--violet),var(--magenta));color:white;cursor:pointer;
+  transition:transform .15s,box-shadow .15s;margin-top:8px;
+}
+.btn:hover{box-shadow:0 6px 24px -4px var(--accent-glow);transform:translateY(-1px);}
+.btn-ghost{
+  width:100%;border:1px solid var(--card-border);border-radius:10px;padding:13px;font-size:15px;font-weight:600;
+  background:transparent;color:var(--ink);cursor:pointer;
+  transition:transform .15s,box-shadow .15s;margin-top:8px;
+}
+.btn-ghost:hover{border-color:var(--ink-soft);}
+.auth-link{text-align:center;margin-top:20px;color:var(--ink-soft);font-size:14px;}
+.auth-link a{color:var(--accent);text-decoration:none;}
+.auth-link a:hover{text-decoration:underline;}
+.biz-btn{
+  width:100%;padding:14px;background:rgba(255,255,255,0.04);
+  border:1px solid var(--card-border);border-radius:10px;cursor:pointer;
+  display:flex;justify-content:space-between;align-items:center;
+  transition:border-color .2s;color:var(--ink);font-size:14px;font-family:inherit;
+  margin-bottom:8px;
+}
+.biz-btn:hover{border-color:var(--accent);background:rgba(124,58,237,0.1);}
+.biz-name{font-weight:500;}
+.biz-role{font-size:12px;color:var(--ink-soft);}
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="scan-line"></div>
+  <div class="brand"><span class="brand-mark">WMS</span><span class="brand-mark-ai">·AI</span></div>
+  <p class="subtitle">Выберите бизнес</p>
+
+  {% if memberships %}
+  {% for membership in memberships %}
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="business_id" value="{{ membership.business.id }}">
+    <button type="submit" class="biz-btn">
+      <span class="biz-name">{{ membership.business.name }}</span>
+      <span class="biz-role">{{ membership.get_role_display }}</span>
+    </button>
+  </form>
+  {% endfor %}
+  {% else %}
+  <p style="color:var(--ink-soft);text-align:center;margin-bottom:16px;">У вас пока нет бизнесов</p>
+  {% endif %}
+
+  <a href="{% url 'create_business' %}" class="btn-ghost">+ Создать новый бизнес</a>
+
+  <p class="auth-link">
+    <a href="{% url 'logout' %}">Выйти</a>
+  </p>
+</div>
+</body>
+</html>

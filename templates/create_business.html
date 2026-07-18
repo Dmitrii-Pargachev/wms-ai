@@ -1,0 +1,161 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>WMS·AI — Создание бизнеса</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0118; --bg-soft:#120A28; --violet:#7C3AED; --magenta:#C026D3;
+  --ink:#F5F3FF; --ink-soft:#A78BFA; --card:#160B30; --card-border:rgba(167,139,250,0.18);
+  --accent:#7C3AED; --accent-glow:rgba(124,58,237,0.35);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--ink); font-family:'Inter',system-ui,sans-serif;
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding:16px;
+}
+body::before{
+  content:""; position:fixed; inset:0;
+  background: radial-gradient(ellipse 60% 40% at 80% -10%, rgba(124,58,237,0.35), transparent 60%),
+              radial-gradient(ellipse 50% 35% at 0% 20%, rgba(192,38,211,0.18), transparent 60%);
+  pointer-events:none;
+}
+.login-card{
+  position:relative; width:100%; max-width:440px; background:var(--card);
+  border:1px solid var(--card-border); border-radius:18px; padding:36px;
+  box-shadow:0 40px 80px -20px var(--accent-glow);
+}
+.scan-line{
+  position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, transparent, #22D3EE, #C026D3, transparent);
+  animation:scanx 2.4s linear infinite;
+}
+@keyframes scanx{ from{transform:translateX(-100%);} to{transform:translateX(100%);} }
+.brand{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:24px; text-align:center; margin-bottom:8px; }
+.brand-mark{color:var(--ink);} .brand-mark-ai{color:var(--accent);}
+.subtitle{ text-align:center; color:var(--ink-soft); font-size:14px; margin-bottom:24px; }
+.field{display:block;margin-bottom:14px;}
+.field span{display:block;font-size:13px;color:var(--ink-soft);margin-bottom:6px;}
+.field input,.field select,.field textarea{
+  width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--card-border);
+  border-radius:10px;padding:12px 14px;color:var(--ink);font-size:15px;outline:none;
+  transition:border-color .15s;font-family:inherit;
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.field select option{background:var(--bg-soft);color:var(--ink);}
+.field textarea{resize:vertical;min-height:70px;}
+.btn{
+  width:100%;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:600;
+  background:linear-gradient(135deg,var(--violet),var(--magenta));color:white;cursor:pointer;
+  transition:transform .15s,box-shadow .15s;margin-top:12px;
+}
+.btn:hover{box-shadow:0 6px 24px -4px var(--accent-glow);transform:translateY(-1px);}
+.errors{background:rgba(251,113,133,0.1);border:1px solid rgba(251,113,133,0.3);border-radius:10px;padding:12px;margin-bottom:16px;color:#FB7185;font-size:13px;}
+.auth-link{text-align:center;margin-top:20px;color:var(--ink-soft);font-size:14px;}
+.auth-link a{color:var(--accent);text-decoration:none;}
+.auth-link a:hover{text-decoration:underline;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:480px){
+  .login-card{padding:24px;border-radius:14px}
+  .brand{font-size:20px}
+  .field input,.field select,.field textarea{padding:10px 12px;font-size:16px}
+  .btn{padding:12px;font-size:16px}
+  .field-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="scan-line"></div>
+  <div class="brand"><span class="brand-mark">Новый бизнес</span></div>
+  <p class="subtitle">Настройте свой первый бизнес</p>
+
+  {% if errors %}
+  <div class="errors">
+    {% for error in errors %}{{ error }}{% endfor %}
+  </div>
+  {% endif %}
+
+  <form method="post" autocomplete="off">
+    {% csrf_token %}
+
+    <label class="field">
+      <span>Название бизнеса *</span>
+      <input name="name" placeholder="Мой магазин" required autofocus>
+    </label>
+    <label class="field">
+      <span>URL-идентификатор *</span>
+      <input name="slug" id="slug" placeholder="мой-магазин" required>
+      <small style="font-size:11px;color:var(--ink-soft);margin-top:4px;display:block;">Будет: <span id="slug-preview">...</span>.wms-ai.ru</small>
+    </label>
+    <label class="field">
+      <span>Тип бизнеса *</span>
+      <select name="business_type">
+        <option value="retail">Розничная торговля</option>
+        <option value="wholesale">Оптовая торговля</option>
+        <option value="services">Услуги</option>
+        <option value="production">Производство</option>
+        <option value="other">Другое</option>
+      </select>
+    </label>
+    <div class="field-row">
+      <label class="field">
+        <span>Телефон</span>
+        <input type="tel" name="phone" id="phone" placeholder="+7 (999) 123-45-67" oninput="formatPhone(this)">
+      </label>
+      <label class="field">
+        <span>Email</span>
+        <input type="email" name="biz_email" placeholder="info@shop.ru">
+      </label>
+    </div>
+    <label class="field">
+      <span>Описание</span>
+      <textarea name="description" placeholder="Кратко о вашем бизнесе..."></textarea>
+    </label>
+
+    <button type="submit" class="btn">Создать бизнес</button>
+  </form>
+
+  <p class="auth-link">
+    <a href="{% url 'login' %}">Войти в другой аккаунт</a>
+  </p>
+</div>
+
+<script>
+  const nameInput = document.querySelector('input[name="name"]');
+  const slugInput = document.getElementById('slug');
+  const slugPreview = document.getElementById('slug-preview');
+  nameInput.addEventListener('input', function() {
+    const slug = this.value.toLowerCase().replace(/[^a-z0-9а-яё]+/g, '-').replace(/^-|-$/g, '');
+    slugInput.value = slug;
+    slugPreview.textContent = slug || '...';
+  });
+  slugInput.addEventListener('input', function() {
+    slugPreview.textContent = this.value || '...';
+  });
+
+  // Phone auto-formatting
+  const phoneInput = document.getElementById('phone');
+  phoneInput.addEventListener('input', function(e) {
+    let val = this.value.replace(/\D/g, '');
+    if (val.length === 0) { this.value = ''; return; }
+    if (val[0] === '7' || val[0] === '8') {
+      let formatted = '+7';
+      if (val.length > 1) formatted += ' (' + val.substring(1, 4);
+      if (val.length > 4) formatted += ') ' + val.substring(4, 7);
+      if (val.length > 7) formatted += '-' + val.substring(7, 9);
+      if (val.length > 9) formatted += '-' + val.substring(9, 11);
+      this.value = formatted;
+    } else {
+      this.value = '+7 (' + val;
+    }
+  });
+</script>
+{% include 'components/cookie_consent.html' %}
+</body>
+</html>

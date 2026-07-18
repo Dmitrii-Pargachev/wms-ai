@@ -1,0 +1,493 @@
+{% extends 'base.html' %}
+
+{% block title %}WMS·AI — Конструктор{% endblock %}
+
+{% block body %}
+<div class="app-layout">
+  {% include 'dashboard/components/sidebar.html' with active='constructor' %}
+
+  <main class="main-content">
+    <header class="header">
+      <div>
+        <h1>Конструктор таблиц</h1>
+        <p class="header-sub">{{ user.username }} · {{ business.name|default:"Система" }}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="btn-add" onclick="openCreateTableModal()">+ Создать таблицу</button>
+        <div class="avatar" style="{% if user.profile.avatar %}background-image:url('/media/{{ user.profile.avatar }}?t=1');background-size:cover;background-position:center;{% endif %}">{% if not user.profile.avatar %}{{ user.username|truncatechars:2 }}{% endif %}</div>
+      </div>
+    </header>
+
+    <!-- Table List View -->
+    <div id="tables-view">
+      <div id="tables-grid" class="kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));">
+        <div style="text-align:center;color:var(--ink-soft);grid-column:1/-1;padding:40px;">Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Table Detail View -->
+    <div id="table-detail-view" style="display:none;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <button class="btn btn-ghost" onclick="showTableView()" style="padding:6px 12px;font-size:13px;">← Назад</button>
+        <h2 id="detail-title" style="margin:0;"></h2>
+        <button class="btn-add" onclick="openAddFieldModal()" style="padding:6px 12px;font-size:13px;">+ Поле</button>
+        <button class="btn btn-ghost" onclick="exportCSV()" style="padding:6px 12px;font-size:13px;">📥 CSV</button>
+      </div>
+
+      <!-- Fields List -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="table-head-row"><h2>Поля</h2></div>
+        <div id="fields-list"></div>
+      </div>
+
+      <!-- Data Table -->
+      <div class="card">
+        <div class="table-head-row">
+          <h2>Данные</h2>
+          <button class="btn-add" onclick="openAddRowModal()" style="padding:6px 12px;font-size:13px;">+ Запись</button>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead id="data-header"></thead>
+            <tbody id="data-body">
+              <tr><td colspan="100" style="text-align:center;color:var(--ink-soft);">Нет данных</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="data-pagination" class="pagination"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Create Table Modal -->
+<div class="modal-overlay" id="create-table-modal">
+  <div class="modal-card">
+    <div class="modal-scan-line"></div>
+    <button class="modal-close" onclick="closeModal('create-table-modal')">&times;</button>
+    <h2 class="modal-title">Новая таблица</h2>
+    <p class="modal-sub">Создайте пользовательскую таблицу</p>
+    <label class="field">
+      <span>Название *</span>
+      <input type="text" id="new-table-name" placeholder="Клиенты">
+    </label>
+    <label class="field">
+      <span>Иконка</span>
+      <input type="text" id="new-table-icon" value="📋" maxlength="10">
+    </label>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="closeModal('create-table-modal')">Отмена</button>
+      <button class="btn btn-primary" onclick="createTable()">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Field Modal -->
+<div class="modal-overlay" id="add-field-modal">
+  <div class="modal-card">
+    <div class="modal-scan-line"></div>
+    <button class="modal-close" onclick="closeModal('add-field-modal')">&times;</button>
+    <h2 class="modal-title">Новое поле</h2>
+    <p class="modal-sub">Добавьте поле в таблицу</p>
+    <label class="field">
+      <span>Название *</span>
+      <input type="text" id="new-field-name" placeholder="Телефон">
+    </label>
+    <label class="field">
+      <span>Тип</span>
+      <select id="new-field-type">
+        <option value="text">Текст</option>
+        <option value="number">Число</option>
+        <option value="date">Дата</option>
+        <option value="select">Выбор</option>
+        <option value="boolean">Да/Нет</option>
+        <option value="email">Email</option>
+        <option value="phone">Телефон</option>
+        <option value="url">Ссылка</option>
+        <option value="relation">Связь</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>Обязательное</span>
+      <input type="checkbox" id="new-field-required">
+    </label>
+    <div id="field-options-section" style="display:none;">
+      <label class="field">
+        <span>Варианты (через запятую)</span>
+        <input type="text" id="new-field-options" placeholder="Вариант1, Вариант2">
+      </label>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="closeModal('add-field-modal')">Отмена</button>
+      <button class="btn btn-primary" onclick="addField()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Row Modal -->
+<div class="modal-overlay" id="row-modal">
+  <div class="modal-card">
+    <div class="modal-scan-line"></div>
+    <button class="modal-close" onclick="closeModal('row-modal')">&times;</button>
+    <h2 class="modal-title" id="row-modal-title">Новая запись</h2>
+    <p class="modal-sub" id="row-modal-sub">Заполните данные</p>
+    <form id="row-form" onsubmit="saveRow(event)">
+      <div id="row-form-fields"></div>
+      <input type="hidden" id="row-id">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('row-modal')">Отмена</button>
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  let currentTable = null;
+  let currentFields = [];
+
+  // Load tables
+  async function loadTables() {
+    try {
+      const res = await fetch('/api/custom/tables/');
+      const data = await res.json();
+      renderTables(data.tables || []);
+    } catch (e) {
+      console.error('Failed to load tables:', e);
+    }
+  }
+
+  async function deleteTable(id, name) {
+    if (!confirm('Удалить таблицу "' + name + '"?')) return;
+    try {
+      const res = await fetch('/api/custom/tables/' + id + '/delete/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      });
+      if (res.ok) {
+        window.location.hash = '';
+        loadTables();
+      }
+    } catch (e) {
+      console.error('Delete table failed:', e);
+    }
+  }
+
+  function renderTables(tables) {
+    const grid = document.getElementById('tables-grid');
+    if (!tables || tables.length === 0) {
+      grid.innerHTML = '<div style="text-align:center;color:var(--ink-soft);grid-column:1/-1;padding:40px;">Нет таблиц. Создайте первую!</div>';
+      return;
+    }
+    grid.innerHTML = tables.map(t => `
+      <div class="kpi-card" style="cursor:pointer;transition:border-color .2s;position:relative;" onclick="openTable(${t.id})" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor=''">
+        <div style="position:absolute;top:8px;right:8px;">
+          <button onclick="event.stopPropagation();deleteTable(${t.id},'${t.name}')" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:16px;padding:4px;" title="Удалить">✕</button>
+        </div>
+        <div style="font-size:28px;margin-bottom:8px;">${t.icon}</div>
+        <div class="kpi-value blue" style="font-size:16px;">${t.name}</div>
+        <div class="kpi-label">${t.fields_count} полей</div>
+      </div>
+    `).join('');
+  }
+
+  function showTableView() {
+    document.getElementById('tables-view').style.display = '';
+    document.getElementById('table-detail-view').style.display = 'none';
+    loadTables();
+  }
+
+  // Create table
+  function openCreateTableModal() {
+    document.getElementById('new-table-name').value = '';
+    document.getElementById('new-table-icon').value = '📋';
+    openModal('create-table-modal');
+  }
+
+  async function createTable() {
+    const name = document.getElementById('new-table-name').value.trim();
+    const icon = document.getElementById('new-table-icon').value.trim() || '📋';
+    if (!name) return;
+
+    try {
+      const res = await fetch('/api/custom/tables/create/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ name, icon }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        closeModal('create-table-modal');
+        openTable(data.id);
+      } else {
+        alert(data.error || 'Ошибка создания таблицы');
+      }
+    } catch (e) {
+      console.error('Create table failed:', e);
+      alert('Ошибка сети');
+    }
+  }
+
+  // Open table detail
+  async function openTable(id) {
+    try {
+      const res = await fetch(`/api/custom/tables/${id}/`);
+      currentTable = await res.json();
+      currentFields = currentTable.fields || [];
+
+      // Save to URL hash for persistence
+      window.location.hash = 'table-' + id;
+
+      document.getElementById('tables-view').style.display = 'none';
+      document.getElementById('table-detail-view').style.display = '';
+      document.getElementById('detail-title').textContent = `${currentTable.icon} ${currentTable.name}`;
+
+      renderFields();
+      loadRows();
+    } catch (e) {
+      console.error('Failed to load table:', e);
+    }
+  }
+
+  function renderFields() {
+    const container = document.getElementById('fields-list');
+    if (!currentFields || currentFields.length === 0) {
+      container.innerHTML = '<p style="color:var(--ink-soft);">Нет полей. Добавьте первое!</p>';
+      return;
+    }
+    container.innerHTML = currentFields.map(f => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--card-border);">
+        <div>
+          <strong>${f.name}</strong>
+          <span style="color:var(--ink-soft);font-size:12px;margin-left:8px;">${f.field_type_display}</span>
+          ${f.required ? '<span style="color:var(--bad);font-size:12px;margin-left:4px;">*</span>' : ''}
+        </div>
+        <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;border-color:var(--bad);color:var(--bad);" onclick="deleteField(${f.id})">Удалить</button>
+      </div>
+    `).join('');
+  }
+
+  // Add field
+  function openAddFieldModal() {
+    document.getElementById('new-field-name').value = '';
+    document.getElementById('new-field-type').value = 'text';
+    document.getElementById('new-field-required').checked = false;
+    document.getElementById('new-field-options').value = '';
+    document.getElementById('field-options-section').style.display = 'none';
+    openModal('add-field-modal');
+  }
+
+  document.getElementById('new-field-type').addEventListener('change', function() {
+    document.getElementById('field-options-section').style.display =
+      this.value === 'select' || this.value === 'multiselect' ? '' : 'none';
+  });
+
+  async function addField() {
+    const name = document.getElementById('new-field-name').value.trim();
+    const field_type = document.getElementById('new-field-type').value;
+    const required = document.getElementById('new-field-required').checked;
+    const optionsStr = document.getElementById('new-field-options').value;
+    const options = optionsStr ? optionsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+    if (!name || !currentTable) return;
+
+    try {
+      const res = await fetch(`/api/custom/tables/${currentTable.id}/fields/create/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ name, field_type, required, options }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        closeModal('add-field-modal');
+        openTable(currentTable.id);
+      } else {
+        alert(data.error || 'Ошибка добавления поля');
+      }
+    } catch (e) {
+      console.error('Add field failed:', e);
+      alert('Ошибка сети');
+    }
+  }
+
+  async function deleteField(fieldId) {
+    if (!confirm('Удалить поле?')) return;
+    try {
+      await fetch(`/api/custom/tables/${currentTable.id}/fields/${fieldId}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      });
+      openTable(currentTable.id);
+    } catch (e) {
+      console.error('Delete field failed:', e);
+    }
+  }
+
+  // Load rows
+  async function loadRows(page = 1) {
+    if (!currentTable) return;
+    try {
+      const res = await fetch(`/api/custom/tables/${currentTable.id}/rows/?page=${page}&per_page=20`);
+      const data = await res.json();
+      renderRows(data);
+    } catch (e) {
+      console.error('Failed to load rows:', e);
+    }
+  }
+
+  function renderRows(data) {
+    const header = document.getElementById('data-header');
+    const body = document.getElementById('data-body');
+
+    if (!currentFields || currentFields.length === 0) {
+      header.innerHTML = '';
+      body.innerHTML = '<tr><td colspan="100" style="text-align:center;color:var(--ink-soft);">Добавьте поля</td></tr>';
+      return;
+    }
+
+    header.innerHTML = '<tr>' +
+      currentFields.map(f => `<th>${f.name}</th>`).join('') +
+      '<th></th></tr>';
+
+    const rows = data.rows || [];
+    if (rows.length === 0) {
+      body.innerHTML = '<tr><td colspan="100" style="text-align:center;color:var(--ink-soft);">Нет данных</td></tr>';
+      return;
+    }
+
+    body.innerHTML = rows.map(row => {
+      const cells = currentFields.map(f => {
+        let val = row[f.name];
+        if (val === null || val === undefined) val = '';
+        if (f.field_type === 'boolean') val = val ? '✓' : '';
+        return `<td>${val}</td>`;
+      }).join('');
+      return `<tr>${cells}<td><button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;" onclick="editRow(${row.id})">✏️</button> <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;border-color:var(--bad);color:var(--bad);" onclick="deleteRow(${row.id})">✕</button></td></tr>`;
+    }).join('');
+  }
+
+  // Add/Edit row
+  function openAddRowModal() {
+    document.getElementById('row-modal-title').textContent = 'Новая запись';
+    document.getElementById('row-id').value = '';
+    renderRowForm({});
+    openModal('row-modal');
+  }
+
+  async function editRow(rowId) {
+    try {
+      const res = await fetch(`/api/custom/tables/${currentTable.id}/rows/?id=${rowId}`);
+      const data = await res.json();
+      const row = (data.rows || []).find(r => r.id === rowId);
+      if (row) {
+        document.getElementById('row-modal-title').textContent = 'Редактировать';
+        document.getElementById('row-id').value = rowId;
+        renderRowForm(row);
+        openModal('row-modal');
+      }
+    } catch (e) {
+      console.error('Edit row failed:', e);
+    }
+  }
+
+  function renderRowForm(row) {
+    const container = document.getElementById('row-form-fields');
+    container.innerHTML = currentFields.map(f => {
+      let input = '';
+      const val = row[f.name] || '';
+      switch (f.field_type) {
+        case 'boolean':
+          input = `<input type="checkbox" id="row-${f.name}" ${val ? 'checked' : ''}>`;
+          break;
+        case 'select':
+          input = `<select id="row-${f.name}"><option value="">—</option>${(f.options || []).map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+          break;
+        case 'date':
+          input = `<input type="date" id="row-${f.name}" value="${val}">`;
+          break;
+        case 'number':
+          input = `<input type="number" id="row-${f.name}" value="${val}" step="any">`;
+          break;
+        default:
+          input = `<input type="text" id="row-${f.name}" value="${val}">`;
+      }
+      return `<label class="field"><span>${f.name}${f.required ? ' *' : ''}</span>${input}</label>`;
+    }).join('');
+  }
+
+  async function saveRow(e) {
+    e.preventDefault();
+    const rowId = document.getElementById('row-id').value;
+    const data = {};
+    currentFields.forEach(f => {
+      const el = document.getElementById(`row-${f.name}`);
+      if (!el) return;
+      if (f.field_type === 'boolean') {
+        data[f.name] = el.checked;
+      } else if (f.field_type === 'number') {
+        data[f.name] = parseFloat(el.value) || 0;
+      } else {
+        data[f.name] = el.value;
+      }
+    });
+
+    try {
+      const url = rowId
+        ? `/api/custom/tables/${currentTable.id}/rows/${rowId}/update/`
+        : `/api/custom/tables/${currentTable.id}/rows/create/`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify(data),
+      });
+      const resp = await res.json();
+      if (res.ok && resp.ok) {
+        closeModal('row-modal');
+        loadRows();
+      } else {
+        alert(resp.error || 'Ошибка сохранения');
+      }
+    } catch (e) {
+      console.error('Save row failed:', e);
+      alert('Ошибка сети');
+    }
+  }
+
+  async function deleteRow(rowId) {
+    if (!confirm('Удалить запись?')) return;
+    try {
+      await fetch(`/api/custom/tables/${currentTable.id}/rows/${rowId}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      });
+      loadRows();
+    } catch (e) {
+      console.error('Delete row failed:', e);
+    }
+  }
+
+  // Import/Export
+  function exportCSV() {
+    if (!currentTable) return;
+    window.open(`/api/custom/tables/${currentTable.id}/export/`, '_blank');
+  }
+
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  function getCookie(name) { const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)'); return v ? v.pop() : ''; }
+
+  // Init — restore table from URL hash
+  (async function() {
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#table-')) {
+      const tableId = parseInt(hash.replace('#table-', ''));
+      if (tableId) {
+        await loadTables();
+        openTable(tableId);
+        return;
+      }
+    }
+    loadTables();
+  })();
+</script>
+{% endblock %}

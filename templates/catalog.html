@@ -166,8 +166,8 @@
 <nav class="filters">
   <div class="filters-inner" id="filterBar">
     <button class="filter-btn active" data-cat="all">Все</button>
+    <input class="search" id="searchInput" type="text" placeholder="Поиск по каталогу…">
   </div>
-  <input class="search" id="searchInput" type="text" placeholder="Поиск по каталогу…">
 </nav>
 
 <main>
@@ -202,6 +202,19 @@
 </footer>
 
 <script>
+function formatPhone(el){
+  var val=el.value.replace(/\D/g,'');
+  if(val.length===0){el.value='';return;}
+  if(val[0]==='8')val='7'+val.substring(1);
+  if(val[0]!=='7')val='7'+val;
+  var formatted='+7';
+  if(val.length>1)formatted+=' ('+val.substring(1,4);
+  if(val.length>=4)formatted+=') ';
+  if(val.length>4)formatted+=val.substring(4,7);
+  if(val.length>7)formatted+='-'+val.substring(7,9);
+  if(val.length>9)formatted+='-'+val.substring(9,11);
+  el.value=formatted;
+}
 const STOCK_LABEL = {in:"В наличии", low:"Заканчивается", out:"Нет в наличии"};
 let PRODUCTS = [];
 let CATEGORIES = [];
@@ -249,7 +262,7 @@ function renderGrid(){
     return `
     <div class="card">
       <div class="swatch${hasPhoto ? ' has-photo' : ''}" data-roast="${p.roast}">
-        ${hasPhoto ? `<img src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.parentElement.classList.remove('has-photo'); this.remove();">` : ''}
+        ${hasPhoto ? `<img src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.parentElement.classList.remove('has-photo'); this.remove();">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff;font-size:13px;text-align:center;padding:16px;opacity:.7;">Фото пока нет</div>'}
       </div>
       <div class="card-body">
         <div class="card-top">
@@ -260,12 +273,15 @@ function renderGrid(){
           <span class="stock ${p.stock}">${STOCK_LABEL[p.stock]}</span>
         </div>
         <div class="desc">${p.desc}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);margin-top:2px;">
+          ${p.stock === 'out' ? '' : `Остаток: ${p.quantity} шт`}
+        </div>
         <div class="card-foot">
           <div class="price">${fmtPrice(p.price)} <span class="unit">/ ${p.unit}</span></div>
           ${disabled ? '' : `
           <div class="qty">
             <button onclick="changeQty(${p.id},-1)" aria-label="Меньше">−</button>
-            <input type="text" readonly value="${qty || 1}" id="qtyInput${p.id}">
+            <input type="text" readonly value="${qty || 1}" id="qtyInput${p.id}" data-max="${p.quantity}">
             <button onclick="changeQty(${p.id},1)" aria-label="Больше">+</button>
           </div>`}
         </div>
@@ -281,12 +297,23 @@ const pendingQty = {};
 function changeQty(id, delta){
   const current = pendingQty[id] || 1;
   const next = Math.max(1, current + delta);
+  // Limit to available stock
+  const product = PRODUCTS.find(p => p.id == id);
+  if(product && next > product.quantity){
+    return;
+  }
   pendingQty[id] = next;
   const input = document.getElementById('qtyInput'+id);
   if(input) input.value = next;
 }
 function addToCart(id){
+  const product = PRODUCTS.find(p => p.id == id);
   const qty = pendingQty[id] || 1;
+  // Don't add more than available
+  if(product && (cart[id] || 0) + qty > product.quantity){
+    alert('Недостаточно товара на складе. Доступно: ' + product.quantity + ' шт');
+    return;
+  }
   cart[id] = (cart[id] || 0) + qty;
   pendingQty[id] = 1;
   renderGrid();
@@ -359,7 +386,7 @@ function openOrderForm(){
     </div>
     <div class="field">
       <label>Телефон</label>
-      <input type="tel" id="ordPhone" placeholder="+7 900 000-00-00">
+      <input type="tel" id="ordPhone" placeholder="+7 (900) 000-00-00" oninput="formatPhone(this)">
     </div>
     <div class="field">
       <label>Комментарий (необязательно)</label>
@@ -386,7 +413,7 @@ async function submitOrder(){
   const ids = Object.keys(cart).filter(id => cart[id] > 0);
   const items = ids.map(id => {
     const p = PRODUCTS.find(x => x.id == id);
-    return { name: p.name, price: p.price, quantity: cart[id], total: p.price * cart[id] };
+    return { product_id: p.id, name: p.name, price: p.price, quantity: cart[id], total: p.price * cart[id] };
   });
 
   checkoutBtn.disabled = true;

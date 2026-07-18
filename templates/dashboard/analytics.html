@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}WMS·AI — Аналитика{% endblock %}
+
+{% block body %}
+<div class="app-layout">
+  {% include 'dashboard/components/sidebar.html' with active='analytics' %}
+
+  <main class="main-content">
+    <header class="header">
+      <div>
+        <h1>Аналитика</h1>
+        <p class="header-sub">{{ user.username }} · {{ business.name|default:"Система" }}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="avatar" style="{% if user.profile.avatar %}background-image:url('/media/{{ user.profile.avatar }}?t=1');background-size:cover;background-position:center;{% endif %}">{% if not user.profile.avatar %}{{ user.username|truncatechars:2 }}{% endif %}</div>
+      </div>
+    </header>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Товаров</div>
+        <div class="kpi-value blue" id="an-products">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Выручка (30 дн)</div>
+        <div class="kpi-value green" id="an-revenue">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Продаж (30 дн)</div>
+        <div class="kpi-value orange" id="an-sales">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Средний чек</div>
+        <div class="kpi-value" id="an-avg">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-head-row">
+        <h2>Продажи по дням</h2>
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="setChartPeriod(this,'week')">Неделя</button>
+          <button class="filter-btn" onclick="setChartPeriod(this,'month')">Месяц</button>
+          <button class="filter-btn" onclick="setChartPeriod(this,'quarter')">Квартал</button>
+        </div>
+      </div>
+      <div style="height:200px;"><canvas id="sales-chart"></canvas></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div class="card">
+        <div class="table-head-row"><h2>Топ товаров</h2></div>
+        <ul id="top-products" style="list-style:none;padding:0;"></ul>
+      </div>
+      <div class="card">
+        <div class="table-head-row"><h2>По категориям</h2></div>
+        <ul id="by-category" style="list-style:none;padding:0;"></ul>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  let salesChart = null;
+
+  async function loadSummary() {
+    try {
+      const res = await fetch('/api/analytics/summary/');
+      const data = await res.json();
+      document.getElementById('an-products').textContent = data.products.total;
+      document.getElementById('an-revenue').textContent = fmtMoney(data.revenue.recent_30d) + ' ₽';
+      document.getElementById('an-sales').textContent = data.sales.recent_30d;
+      document.getElementById('an-avg').textContent = fmtMoney(data.revenue.avg_check) + ' ₽';
+    } catch (e) {
+      console.error('Failed to load summary:', e);
+    }
+  }
+
+  async function loadChart(period = 'week') {
+    try {
+      const res = await fetch(`/api/analytics/sales/?period=${period}`);
+      const data = await res.json();
+
+      const topHtml = (data.top_products || []).map(p =>
+        `<li style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--card-border);font-size:13px;">
+          <span>${p.product__name}</span><span class="mono" style="color:var(--accent);">${fmtMoney(p.total)} ₽</span>
+        </li>`
+      ).join('') || '<li style="color:var(--ink-soft);padding:8px 0;">Нет данных</li>';
+      document.getElementById('top-products').innerHTML = topHtml;
+
+      const catHtml = (data.by_category || []).map(c =>
+        `<li style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--card-border);font-size:13px;">
+          <span>${c.product__category__name || 'Без категории'}</span><span class="mono" style="color:var(--accent);">${fmtMoney(c.total)} ₽</span>
+        </li>`
+      ).join('') || '<li style="color:var(--ink-soft);padding:8px 0;">Нет данных</li>';
+      document.getElementById('by-category').innerHTML = catHtml;
+
+      drawChart(data.daily);
+    } catch (e) {
+      console.error('Failed to load chart:', e);
+    }
+  }
+
+  function drawChart(daily) {
+    const ctx = document.getElementById('sales-chart').getContext('2d');
+    if (salesChart) salesChart.destroy();
+
+    salesChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: daily.map(d => d.date),
+        datasets: [{
+          label: 'Выручка',
+          data: daily.map(d => d.revenue),
+          backgroundColor: 'rgba(124,58,237,0.5)',
+          borderColor: '#7C3AED',
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#A78BFA' }, grid: { color: 'rgba(167,139,250,0.1)' } },
+          y: { beginAtZero: true, ticks: { color: '#A78BFA', callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : v }, grid: { color: 'rgba(167,139,250,0.1)' } }
+        }
+      }
+    });
+  }
+
+  function setChartPeriod(btn, period) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadChart(period);
+  }
+
+  function fmtMoney(n) {
+    return new Intl.NumberFormat('ru-RU').format(n || 0);
+  }
+
+  loadSummary();
+  loadChart('week');
+</script>
+{% endblock %}

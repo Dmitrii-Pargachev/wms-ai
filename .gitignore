@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+env/
+
+# Django
+db.sqlite3
+staticfiles/
+media/
+*.log
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keys & secrets
+key.json
+*.pem
+*.key
+
+# User data
+businesses/
+
+# Сессии и личные файлы
+SUMMARY.md
+SESSION_SUMMARY.md
+DEPLOY.md
+CHANGELOG.md
+README.md
+.mimocode/
+
+# Документы (напишем позже)
+docs/
+
+# Бот (заготовка, не используется)
+bot/
+
+# Temporary
+*.tmp
+*.bak

@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block title %}WMS·AI — Админ-панель{% endblock %}
+{% block body %}
+<div class="app-layout">
+  <button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">WMS</span><span class="brand-mark-ai">·AI</span></div>
+    <nav class="sidebar-nav">
+      <a href="{% url 'admin_businesses' %}" class="nav-item active">
+        <span>🏢</span> Бизнесы
+      </a>
+      <a href="/admin/" class="nav-item">
+        <span>🔧</span> Django Admin
+      </a>
+    </nav>
+    <a href="{% url 'logout' %}" class="nav-item" style="text-decoration:none;margin-top:auto;">
+      <span>🚪</span> Выйти
+    </a>
+  </aside>
+  <main class="main-content">
+    <header class="header">
+      <div>
+        <h1>Админ-панель</h1>
+        <p class="header-sub">Управление бизнесами в системе</p>
+      </div>
+      <div class="avatar">{{ user.username|truncatechars:2 }}</div>
+    </header>
+
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Всего бизнесов</div><div class="kpi-value blue">{{ stats.total }}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Активных</div><div class="kpi-value green">{{ stats.active }}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Неактивных</div><div class="kpi-value red">{{ stats.inactive }}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Пользователей</div><div class="kpi-value orange">—</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Бизнесы</h2>
+        <input type="text" id="admin-search" placeholder="Поиск..." style="background:rgba(255,255,255,0.04);border:1px solid var(--card-border);border-radius:8px;padding:7px 12px;color:var(--ink);font-size:13px;outline:none;width:200px;" oninput="filterTable(this.value)">
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Название</th>
+              <th>Slug</th>
+              <th>Владелец</th>
+              <th>Тип</th>
+              <th class="hide-mobile">Город</th>
+              <th class="hide-mobile">Телефон</th>
+              <th>Статус</th>
+              <th>Создан</th>
+              <th>Действие</th>
+            </tr>
+          </thead>
+          <tbody id="admin-table-body">
+            {% for b in businesses %}
+            <tr>
+              <td><strong>{{ b.name }}</strong></td>
+              <td class="mono" style="font-size:12px;">{{ b.slug }}</td>
+              <td>{{ b.owner.username }}</td>
+              <td>{{ b.get_business_type_display }}</td>
+              <td class="hide-mobile">{{ b.city|default:"—" }}</td>
+              <td class="hide-mobile">{{ b.phone|default:"—" }}</td>
+              <td>
+                {% if b.is_active %}
+                <span class="status status-ok">Активен</span>
+                {% else %}
+                <span class="status status-bad">Выкл</span>
+                {% endif %}
+              </td>
+              <td style="font-size:12px;color:var(--ink-soft);">{{ b.created_at|date:"d.m.Y" }}</td>
+              <td>
+                <button onclick="toggleBusiness({{ b.id }}, this)" class="filter-btn" style="font-size:11px;padding:4px 10px;">
+                  {% if b.is_active %}Выкл{% else %}Вкл{% endif %}
+                </button>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="9" style="text-align:center;color:var(--ink-soft);padding:24px;">Бизнесов пока нет</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+function toggleBusiness(id, btn) {
+  fetch('/api/business/' + id + '/toggle/', {method:'POST', headers:{'X-CSRFToken': getCookie('csrftoken')}})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.ok) location.reload();
+    });
+}
+function filterTable(q) {
+  var rows = document.querySelectorAll('#admin-table-body tr');
+  q = q.toLowerCase();
+  rows.forEach(function(r) {
+    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+document.addEventListener('click', function(e) {
+  var sidebar = document.querySelector('.sidebar');
+  var hamburger = document.querySelector('.hamburger');
+  if (sidebar && sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== hamburger && !hamburger.contains(e.target)) {
+    sidebar.classList.remove('open');
+  }
+});
+</script>
+{% endblock %}

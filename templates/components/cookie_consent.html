@@ -1,0 +1,25 @@
+<!-- Cookie Consent Banner -->
+<div id="cookie-consent-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg-soft,#120A28);border-top:1px solid var(--card-border,rgba(167,139,250,0.18));padding:16px 24px;z-index:9999;box-shadow:0 -4px 24px rgba(0,0,0,0.3);">
+  <div style="max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:200px;font-size:13px;color:var(--ink-soft,#A78BFA);line-height:1.5;">
+      Мы используем cookies для улучшения работы сайта, анализа трафика и персонализации контента.
+      Продолжая использовать сайт, вы соглашаетесь с использованием cookies.
+      <a href="/privacy/" target="_blank" style="color:var(--accent,#7C3AED);">Подробнее</a>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button onclick="wmsAcceptCookies('necessary')" style="background:transparent;border:1px solid var(--card-border,rgba(167,139,250,0.18));color:var(--ink,#F5F3FF);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Только необходимые</button>
+      <button onclick="wmsAcceptCookies('all')" style="background:linear-gradient(135deg,#7C3AED,#C026D3);border:none;color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Принять все</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var v=document.cookie.match('(^|;)\\s*wms_cookie_consent\\s*=\\s*([^;]+)');
+  if(!v){document.getElementById('cookie-consent-banner').style.display='block';}
+})();
+function wmsAcceptCookies(t){
+  var d=new Date();d.setTime(d.getTime()+365*864e5);
+  document.cookie='wms_cookie_consent='+t+';expires='+d.toUTCString()+';path=/';
+  document.getElementById('cookie-consent-banner').style.display='none';
+}
+</script>

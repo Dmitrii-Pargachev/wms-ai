@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% block title %}WMS·AI — Клиенты{% endblock %}
+
+{% block body %}
+<div class="app-layout">
+  {% include 'dashboard/components/sidebar.html' with active='clients' %}
+
+  <main class="main-content">
+    <header class="header">
+      <div>
+        <h1>Клиенты</h1>
+        <p class="header-sub">{{ user.username }} · {{ business.name|default:"Система" }}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="btn-add" onclick="openModal('client-modal')">+ Клиент</button>
+        <div class="avatar" style="{% if user.profile.avatar %}background-image:url('/media/{{ user.profile.avatar }}?t=1');background-size:cover;background-position:center;{% endif %}">{% if not user.profile.avatar %}{{ user.username|truncatechars:2 }}{% endif %}</div>
+      </div>
+    </header>
+
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Всего</div><div class="kpi-value blue" id="kpi-total">0</div></div>
+      <div class="kpi-card"><div class="kpi-label">VIP</div><div class="kpi-value orange" id="kpi-vip">0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Ценные</div><div class="kpi-value green" id="kpi-valuable">0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Обычные</div><div class="kpi-value" id="kpi-usual">0</div></div>
+    </div>
+
+    <div class="card">
+      <div class="table-head-row">
+        <h2>Список клиентов</h2>
+        <input type="text" id="client-search" placeholder="Поиск..." oninput="debounce(loadClients, 300)()">
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Имя</th>
+              <th>Телефон</th>
+              <th class="hide-mobile">Соцсеть</th>
+              <th class="num">Покупки</th>
+              <th>Статус</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="clients-body">
+            <tr><td colspan="6" style="text-align:center;color:var(--ink-soft);">Загрузка...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Client Modal -->
+<div class="modal-overlay" id="client-modal">
+  <div class="modal-card">
+    <div class="modal-scan-line"></div>
+    <button class="modal-close" onclick="closeModal('client-modal')">&times;</button>
+    <h2 class="modal-title">Новый клиент</h2>
+    <p class="modal-sub">Добавьте информацию о клиенте</p>
+    <form id="client-form" onsubmit="saveClient(event)">
+      <label class="field">
+        <span>Имя *</span>
+        <input type="text" id="client-firstname" required>
+      </label>
+      <label class="field">
+        <span>Фамилия</span>
+        <input type="text" id="client-lastname">
+      </label>
+      <label class="field">
+        <span>Телефон *</span>
+        <input type="tel" id="client-phone" required placeholder="+7 (999) 123-45-67" oninput="formatPhone(this)">
+      </label>
+      <label class="field">
+        <span>Соцсеть</span>
+        <select id="client-social">
+          <option value="telegram">Telegram</option>
+          <option value="max">Max</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="vk">VK</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Юзернейм</span>
+        <input type="text" id="client-username" placeholder="@username">
+      </label>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('client-modal')">Отмена</button>
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  async function loadClients() {
+    try {
+      const search = document.getElementById('client-search').value;
+      const url = search ? `/api/clients/?search=${encodeURIComponent(search)}` : '/api/clients/';
+      const res = await fetch(url);
+      const data = await res.json();
+      renderClients(data);
+    } catch (e) {
+      console.error('Failed to load clients:', e);
+    }
+  }
+
+  function renderClients(clients) {
+    const tbody = document.getElementById('clients-body');
+
+    let vip = 0, valuable = 0, usual = 0;
+    clients.forEach(c => {
+      if (c.status === 'vip') vip++;
+      else if (c.status === 'valuable') valuable++;
+      else usual++;
+    });
+
+    document.getElementById('kpi-total').textContent = clients.length;
+    document.getElementById('kpi-vip').textContent = vip;
+    document.getElementById('kpi-valuable').textContent = valuable;
+    document.getElementById('kpi-usual').textContent = usual;
+
+    if (!clients || clients.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--ink-soft);">Клиентов пока нет</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = clients.map((c, i) => {
+      const statusClass = c.status === 'vip' ? 'ok' : c.status === 'valuable' ? 'pending' : '';
+      return `<tr style="animation-delay:${i * 0.03}s">
+        <td><strong>${c.first_name} ${c.last_name || ''}</strong></td>
+        <td class="mono">${c.phone}</td>
+        <td class="hide-mobile" style="color:var(--ink-soft);">${c.social_network} ${c.social_username || ''}</td>
+        <td class="num mono">${fmtMoney(c.total_spent)} ₽</td>
+        <td><span class="status status-${statusClass}">${c.status_display}</span></td>
+        <td><button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;border-color:var(--bad);color:var(--bad);" onclick="deleteClient(${c.id})">✕</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function fmtMoney(n) {
+    return new Intl.NumberFormat('ru-RU').format(n || 0);
+  }
+
+  async function saveClient(e) {
+    e.preventDefault();
+    const data = {
+      first_name: document.getElementById('client-firstname').value,
+      last_name: document.getElementById('client-lastname').value,
+      phone: document.getElementById('client-phone').value,
+      social_network: document.getElementById('client-social').value,
+      social_username: document.getElementById('client-username').value,
+    };
+
+    try {
+      const res = await fetch('/api/clients/create/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        closeModal('client-modal');
+        document.getElementById('client-form').reset();
+        loadClients();
+      }
+    } catch (e) {
+      console.error('Save failed:', e);
+    }
+  }
+
+  async function deleteClient(id) {
+    if (!confirm('Удалить клиента?')) return;
+    try {
+      await fetch(`/api/clients/${id}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      });
+      loadClients();
+    } catch (e) {
+      console.error('Delete failed:', e);
+    }
+  }
+
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  function getCookie(name) { const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)'); return v ? v.pop() : ''; }
+  function debounce(func, wait) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => func.apply(this, a), wait); }; }
+
+  loadClients();
+</script>
+{% endblock %}

@@ -2,6 +2,7 @@ from django.urls import path, include
 from . import api_views
 from inventory import catalog_views
 from inventory import order_views
+from inventory import ai_views
 
 urlpatterns = [
     # Categories
@@ -19,6 +20,8 @@ urlpatterns = [
     path('products/<int:pk>/', api_views.product_detail, name='api_product_detail'),
     path('products/<int:pk>/update/', api_views.product_update, name='api_product_update'),
     path('products/<int:pk>/delete/', api_views.product_delete, name='api_product_delete'),
+    path('products/<int:pk>/upload-image/', api_views.product_upload_image, name='api_product_upload_image'),
+    path('products/<int:pk>/delete-image/', api_views.product_delete_image, name='api_product_delete_image'),
 
     # Supplies
     path('supplies/', api_views.supplies_list, name='api_supplies'),
@@ -43,4 +46,9 @@ urlpatterns = [
     # Orders
     path('orders/', order_views.orders_api, name='orders_api'),
     path('orders/<int:order_id>/status/', order_views.order_update_status, name='order_update_status'),
+
+    # AI Generation
+    path('ai/generate/', ai_views.ai_generate_api, name='ai_generate_api'),
+    path('ai/upload/', ai_views.ai_upload_reference, name='ai_upload_reference'),
+    path('ai/apply/<int:product_id>/', ai_views.ai_apply_to_product, name='ai_apply_to_product'),
 ]

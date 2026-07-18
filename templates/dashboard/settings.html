@@ -13,7 +13,7 @@
         <p class="header-sub">{{ user.username }} · {{ business.name|default:"Система" }}</p>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <div class="avatar">{{ user.username|truncatechars:2 }}</div>
+        <div class="avatar" style="{% if user.profile.avatar %}background-image:url('/media/{{ user.profile.avatar }}?t=1');background-size:cover;background-position:center;{% endif %}">{% if not user.profile.avatar %}{{ user.username|truncatechars:2 }}{% endif %}</div>
       </div>
     </header>
 
@@ -22,7 +22,7 @@
         <div class="card" style="padding:6px;">
           <button class="nav-item active" id="set-tab-profile" onclick="switchSettingsTab('profile')" style="width:100%;"><span>👤</span> Профиль</button>
           <button class="nav-item" id="set-tab-display" onclick="switchSettingsTab('display')" style="width:100%;"><span>🎨</span> Оформление</button>
-          <button class="nav-item" id="set-tab-categories" onclick="switchSettingsTab('categories')" style="width:100%;"><span>📁</span> Категории</button>
+          <button class="nav-item" id="set-tab-team" onclick="switchSettingsTab('team')" style="width:100%;"><span>👥</span> Сотрудники</button>
           <button class="nav-item" id="set-tab-team" onclick="switchSettingsTab('team')" style="width:100%;"><span>👥</span> Сотрудники</button>
           <button class="nav-item" id="set-tab-system" onclick="switchSettingsTab('system')" style="width:100%;"><span>🔧</span> Система</button>
           <button class="nav-item" id="set-tab-site" onclick="switchSettingsTab('site')" style="width:100%;"><span>🌐</span> Сайт</button>
@@ -96,19 +96,6 @@
           </div>
         </div>
 
-        <!-- Categories -->
-        <div id="set-categories" class="card" style="padding:28px;display:none;">
-          <h2 style="margin-bottom:20px;">Категории товаров</h2>
-          <div id="categories-list" style="margin-bottom:16px;">
-            <p style="color:var(--ink-soft);">Загрузка...</p>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <input type="text" id="new-category-name" placeholder="Название категории" style="flex:1;">
-            <input type="text" id="new-category-icon" placeholder="📦" style="width:60px;">
-            <button class="btn btn-primary" onclick="addCategory()">Добавить</button>
-          </div>
-        </div>
-
         <!-- Team -->
         <div id="set-team" class="card" style="padding:28px;display:none;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
@@ -136,7 +123,7 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
             <label class="field">
               <span>Телефон</span>
-              <input type="tel" id="sitePhone" value="{{ business.site_phone|default:'' }}" placeholder="+7 900 000-00-00">
+              <input type="tel" id="sitePhone" value="{{ business.site_phone|default:'' }}" placeholder="+7 (900) 000-00-00" oninput="formatPhone(this)">
             </label>
             <label class="field">
               <span>Email</span>
@@ -201,12 +188,11 @@
 
 <script>
 function switchSettingsTab(tab) {
-  var tabs = ['profile', 'display', 'categories', 'team', 'system', 'site'];
+  var tabs = ['profile', 'display', 'team', 'system', 'site'];
   tabs.forEach(function(t) {
     document.getElementById('set-tab-' + t).classList.toggle('active', t === tab);
     document.getElementById('set-' + t).style.display = t === tab ? '' : 'none';
   });
-  if (tab === 'categories') loadCategories();
   if (tab === 'display') initDisplaySettings();
   if (tab === 'team') loadTeam();
   if (tab === 'system') initSystemSettings();
@@ -296,53 +282,6 @@ function refreshCurrentRate() {
     .then(function(r) { return r.json(); })
     .then(function(d) { el.textContent = '$1 = ' + d.rate + ' ₽'; })
     .catch(function() { el.textContent = 'Не удалось загрузить'; });
-}
-
-async function loadCategories() {
-  try {
-    var res = await fetch('/api/categories/');
-    var data = await res.json();
-    var categories = data.categories || data;
-    var container = document.getElementById('categories-list');
-    if (!categories || categories.length === 0) {
-      container.innerHTML = '<p style="color:var(--ink-soft);">Категорий пока нет</p>';
-      return;
-    }
-    container.innerHTML = categories.map(function(c) {
-      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--card-border);">' +
-        '<span>' + (c.icon || '') + ' ' + c.name + '</span>' +
-        '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;border-color:var(--bad);color:var(--bad);" onclick="deleteCategory(' + c.id + ')">Удалить</button>' +
-        '</div>';
-    }).join('');
-  } catch (e) { console.error(e); }
-}
-
-async function addCategory() {
-  var name = document.getElementById('new-category-name').value;
-  var icon = document.getElementById('new-category-icon').value || '📦';
-  if (!name) return;
-  try {
-    var res = await fetch('/api/categories/create/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-      body: JSON.stringify({ name: name, icon: icon }),
-    });
-    if (res.ok) {
-      document.getElementById('new-category-name').value = '';
-      loadCategories();
-    }
-  } catch (e) { console.error(e); }
-}
-
-async function deleteCategory(id) {
-  if (!confirm('Удалить категорию?')) return;
-  try {
-    await fetch('/api/categories/' + id + '/delete/', {
-      method: 'POST',
-      headers: { 'X-CSRFToken': getCookie('csrftoken') },
-    });
-    loadCategories();
-  } catch (e) { console.error(e); }
 }
 
 // === Username check ===
